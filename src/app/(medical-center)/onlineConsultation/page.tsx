@@ -1,0 +1,21 @@
+'use client'
+
+export default function ConsultationPage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-indigo-500/20">
+      <div className="text-center p-10 bg-white/70 backdrop-blur-lg shadow-2xl rounded-3xl border border-gray-200 max-w-xl">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">
+          Online Consultation
+        </h1>
+
+        <p className="text-lg text-gray-700 mb-6">
+          Virtual consultations for Medical Centers are being developed.
+        </p>
+
+        <span className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl shadow-md text-lg font-medium animate-pulse">
+          Coming Soon
+        </span>
+      </div>
+    </div>
+  )
+}
