@@ -10,6 +10,24 @@ import {
   NewPractitionerData,
 } from '@/app/redux/slices/addPractitionerSlice';
 
+// Import the working hours type from the slice if exported, otherwise define it locally
+// For now, we assume the slice's WorkingHoursDay type is exported; adjust if not.
+// If not exported, define it as:
+// type WorkingHoursDay = {
+//   day: string;
+//   start: string;
+//   end: string;
+//   enabled: boolean;
+//   // possibly other fields like id, sessionType, etc.
+// };
+// Since we don't have the slice code, we'll define it locally to match the conversion output.
+type WorkingHoursDay = {
+  day: string;
+  start: string;
+  end: string;
+  enabled: boolean;
+};
+
 // Local UI types for working hours (nested sessions per day)
 type TimeSlot = {
   enabled: boolean;
@@ -25,18 +43,21 @@ type WorkingDay = {
   enabled: boolean;
 };
 
-// Type that matches the slice's expected working hours (flat list of sessions)
-// We'll convert from WorkingDay[] to this format on submission.
-// Since the exact type is not imported, we define it locally for conversion.
-// The slice's actual type may include additional fields like 'id', but we only
-// need the ones we send. Using a local interface avoids import issues.
-interface SliceWorkingHoursDay {
-  day: string;
-  start: string;
-  end: string;
-  enabled: boolean;
-  // If the slice expects extra fields (e.g., 'sessionType'), they can be added here.
+// Form data type for UI state – uses WorkingDay[] for defaultWorkingHours
+interface PractitionerFormData
+  extends Omit<NewPractitionerData, 'specialization' | 'defaultWorkingHours'> {
+  specialization: string[];
+  defaultWorkingHours: WorkingDay[];
 }
+
+const inputClassName =
+  'w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100';
+
+const checkboxClassName =
+  'h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500';
+
+const cardClassName =
+  'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm';
 
 const getDefaultWorkingHours = (): WorkingDay[] => {
   const days = [
@@ -60,10 +81,8 @@ const getDefaultWorkingHours = (): WorkingDay[] => {
 
 // Converts the UI working hours (nested per day with sessions) into the flat format
 // expected by the slice.
-const convertToWorkingHoursDays = (
-  workingDays: WorkingDay[]
-): SliceWorkingHoursDay[] => {
-  const result: SliceWorkingHoursDay[] = [];
+const convertToWorkingHoursDays = (workingDays: WorkingDay[]): WorkingHoursDay[] => {
+  const result: WorkingHoursDay[] = [];
 
   for (const daySchedule of workingDays) {
     if (!daySchedule.enabled) continue;
@@ -84,23 +103,6 @@ const convertToWorkingHoursDays = (
 
   return result;
 };
-
-// Form data type for UI state – uses WorkingDay[] for defaultWorkingHours
-// instead of the slice's flat type.
-interface PractitionerFormData
-  extends Omit<NewPractitionerData, 'specialization' | 'defaultWorkingHours'> {
-  specialization: string[];
-  defaultWorkingHours: WorkingDay[];
-}
-
-const inputClassName =
-  'w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100';
-
-const checkboxClassName =
-  'h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-2 focus:ring-blue-500';
-
-const cardClassName =
-  'rounded-3xl border border-slate-200 bg-white p-5 shadow-sm';
 
 export default function AddPractitioner() {
   const dispatch = useAppDispatch();
@@ -286,6 +288,7 @@ export default function AddPractitioner() {
         formData.defaultWorkingHours
       );
 
+      // Now submissionData matches the slice's NewPractitionerData type
       const submissionData: NewPractitionerData = {
         name: formData.name,
         email: formData.email,
@@ -302,7 +305,7 @@ export default function AddPractitioner() {
         isTemporary: formData.isTemporary,
         maxPatientsPerSlot: Number(formData.maxPatientsPerSlot) || 4,
         notes: formData.notes,
-        defaultWorkingHours: convertedWorkingHours as any, // Cast to any to satisfy the slice's type
+        defaultWorkingHours: convertedWorkingHours, // No cast needed because we typed it as WorkingHoursDay[]
         hourlyRate: Number(formData.hourlyRate) || 0,
       };
 
