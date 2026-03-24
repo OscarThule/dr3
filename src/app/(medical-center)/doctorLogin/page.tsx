@@ -24,7 +24,7 @@ export default function LoginPage() {
   const resetPasswordState = useAppSelector(selectResetPassword);
 
   const [mode, setMode] = useState<FormMode>('login');
-  const [showForgotForm, setShowForgotForm] = useState(false);
+  
   const [resetToken, setResetToken] = useState<string>('');
   
   const [loginData, setLoginData] = useState({
@@ -103,11 +103,7 @@ export default function LoginPage() {
     }));
   };
 
-  const resetForm = useCallback(() => {
-    setShowForgotForm(false);
-    setForgotPasswordData({ email: '' });
-    dispatch(clearForgotPasswordState());
-  }, [dispatch]);
+  
 
   const renderLoginForm = () => (
     <>

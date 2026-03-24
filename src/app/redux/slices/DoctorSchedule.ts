@@ -12,14 +12,15 @@ interface AuthUser {
   name?: string;
   email?: string;
   medical_center_ids?: string[];
-  [key: string]: any;
+  // Additional dynamic fields
+  [key: string]: unknown;
 }
 
 interface AuthState {
   token: string | null;
   session: AuthUser | null;
   loading: boolean;
-  user?: AuthUser; // Add user property if it exists
+  user?: AuthUser;
 }
 
 // Root state type
@@ -79,7 +80,8 @@ export interface PatientInfo {
 export interface MedicalCenterInfo {
   _id: string;
   facility_name: string;
-  [key: string]: any;
+  // other fields if known, otherwise use Record<string, unknown> for dynamic
+  [key: string]: unknown;
 }
 
 export interface PractitionerInfo {
@@ -87,7 +89,7 @@ export interface PractitionerInfo {
   full_name?: string;
   name?: string;
   specialization?: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface DoctorAppointment {
@@ -149,6 +151,17 @@ export interface DoctorPersonalSchedule {
   };
 }
 
+export interface LateArrivalRecord {
+  doctorId: string;
+  doctorName: string;
+  date: string;
+  duration: number;
+  reason: string;
+  affectedSlots: string[];
+  timestamp: string;
+  type: string;
+}
+
 export interface DoctorScheduleState {
   data: DoctorPersonalSchedule | null;
   appointments: DoctorAppointment[];
@@ -156,7 +169,7 @@ export interface DoctorScheduleState {
   loadingAppointments: boolean;
   shiftingSlots: boolean;
   error: string | null;
-  lateArrivals: any[];
+  lateArrivals: LateArrivalRecord[];
 }
 
 export interface ShiftSlotsPayload {
@@ -169,11 +182,56 @@ export interface ShiftSlotsPayload {
   practitioner_id?: string;
 }
 
+// API response wrapper
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data: T;
-  [key: string]: any;
+}
+
+// Raw appointment from API before transformation
+interface RawAppointment {
+  _id: string;
+  appointment_id?: string;
+  schedule_id: string;
+  practitioner_id: string | PractitionerInfo;
+  date: string;
+  slot_id: string;
+  original_slot_id?: string;
+  slot_start: string;
+  slot_end: string;
+  status: string;
+  is_shifted_slot?: boolean;
+  shift_notes?: string;
+  original_appointment_time?: {
+    slot_start: string;
+    slot_end: string;
+  };
+  patient_id: string | PatientInfo;
+  patient_name?: string;
+  patient_email?: string;
+  patient_phone?: string;
+  medical_center_id?: string | MedicalCenterInfo;
+  doctor_name?: string;
+  doctor_specialization?: string[];
+  consultation_type?: string;
+  appointment_duration?: number;
+  reason_for_visit?: string;
+  symptoms?: string;
+  reason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Response after shifting slots
+interface ShiftSlotsResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    shiftedSlots: DoctorSlot[];
+    affectedAppointments: DoctorAppointment[];
+    // any other fields
+  };
 }
 
 /* ======================================================================== */
@@ -207,7 +265,7 @@ const handleApiError = (error: unknown): string => {
   return error instanceof Error ? error.message : "An unknown error occurred";
 };
 
-const transformAppointment = (appt: any): DoctorAppointment => {
+const transformAppointment = (appt: RawAppointment): DoctorAppointment => {
   const patientId = appt.patient_id;
   const isPatientObject = patientId && typeof patientId === 'object';
   
@@ -215,10 +273,10 @@ const transformAppointment = (appt: any): DoctorAppointment => {
     ...appt,
     patient_name: appt.patient_name || 
                  (isPatientObject ? 
-                   `${patientId.firstName || ''} ${patientId.lastName || ''}`.trim() : 
+                   `${(patientId as PatientInfo).firstName || ''} ${(patientId as PatientInfo).lastName || ''}`.trim() : 
                    'Unknown Patient'),
-    patient_email: appt.patient_email || (isPatientObject ? patientId.email : ''),
-    patient_phone: appt.patient_phone || (isPatientObject ? patientId.phone : ''),
+    patient_email: appt.patient_email || (isPatientObject ? (patientId as PatientInfo).email : ''),
+    patient_phone: appt.patient_phone || (isPatientObject ? (patientId as PatientInfo).phone : ''),
     appointment_id: appt.appointment_id || appt._id,
     reason: appt.reason_for_visit || appt.reason,
   };
@@ -283,7 +341,7 @@ export const fetchDoctorAppointments = createAsyncThunk<
         return rejectWithValue("No authentication token found");
       }
 
-      const response = await axios.get<ApiResponse<DoctorAppointment[]>>(
+      const response = await axios.get<ApiResponse<RawAppointment[]>>(
         'https://dmrs.onrender.com/api/bookings/patient',
         {
           headers: {
@@ -314,7 +372,7 @@ export const fetchDoctorAppointments = createAsyncThunk<
 
 // Shift doctor's slots due to delay
 export const shiftDoctorSlots = createAsyncThunk<
-  any, // Response type not clearly defined in original
+  ShiftSlotsResponse['data'],
   ShiftSlotsPayload,
   { state: RootState }
 >(
@@ -338,7 +396,7 @@ export const shiftDoctorSlots = createAsyncThunk<
         return rejectWithValue("Practitioner ID is required");
       }
 
-      const response = await axios.post<ApiResponse<any>>(
+      const response = await axios.post<ApiResponse<ShiftSlotsResponse['data']>>(
         'https://dmrs.onrender.com/api/bookings/shift-slots',
         fullPayload,
         {
@@ -365,7 +423,7 @@ export const shiftDoctorSlots = createAsyncThunk<
 
 // Get late arrivals history
 export const fetchLateArrivals = createAsyncThunk<
-  any[],
+  LateArrivalRecord[],
   { medical_center_id: string; schedule_id: string; date?: string },
   { state: RootState }
 >(
@@ -385,7 +443,7 @@ export const fetchLateArrivals = createAsyncThunk<
         ...(payload.date && { date: payload.date })
       });
 
-      const response = await axios.get<ApiResponse<any[]>>(
+      const response = await axios.get<ApiResponse<LateArrivalRecord[]>>(
         `https://dmrs.onrender.com/api/bookings/late-arrivals?${queryParams}`,
         {
           headers: {
@@ -441,7 +499,7 @@ const mergeAppointmentsIntoSchedule = (
           const slotAppointments = dayAppointments.filter(
             appt => String(appt.slot_id) === String(slot.id) || 
                    (appt.original_slot_id && String(appt.original_slot_id) === String(slot.id))
-          ).map(appt => transformAppointment(appt));
+          ).map(appt => appt);
 
           return {
             ...slot,

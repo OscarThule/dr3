@@ -18,8 +18,6 @@ export interface TimeSlot {
   originalTime?: string;
   isAvailable?: boolean;
 
-  
-  
   // Enhanced properties
   bufferTime: number;
   slotType: string;
@@ -158,6 +156,14 @@ export interface EmergencyCoverage {
   notes?: string;
 }
 
+export interface DayAvailability {
+  morning: boolean;
+  afternoon: boolean;
+  night: boolean;
+}
+
+export type AvailabilityMap = Record<string, DayAvailability>;
+
 export interface DoctorAssignment {
   doctorId: string;
   doctorName: string;
@@ -176,7 +182,7 @@ export interface DoctorAssignment {
     timestamp: string;
   };
   specialization?: string[];
-  availability?: Record<string, any>;
+  availability?: AvailabilityMap;
   workload?: number;
   emergencyCoverage?: boolean;
   color?: string;
@@ -188,8 +194,8 @@ export interface DefaultDoctor {
   doctorId: string;
   doctorName: string;
   specializations: string[];
-  defaultSlots: any[];
-  availability: Record<string, any>;
+  defaultSlots: string[];               // Previously any[]
+  availability: AvailabilityMap;        // Previously Record<string, any>
   preferredDays?: string[];
   blackoutDates?: string[];
   color?: string;
@@ -324,11 +330,6 @@ export interface Doctor {
 }
 
 export interface Practitioner extends Doctor {
-  // Additional properties for Practitioner
- 
- 
-  
-  
   medical_centers?: string[];
   qualifications?: string[];
 }
@@ -491,8 +492,6 @@ export interface SessionSchedule {
 }
 
 export interface Booking {
-  doctorSpecialization: any;
-  
   _id: string;
   patientName: string;
   patientEmail: string;
@@ -528,6 +527,7 @@ export interface Booking {
   followUpRequired?: boolean;
   slotShifted?: boolean;
   originalSlot?: string;
+  doctorSpecialization: string[];   // Previously any
 }
 
 export interface Absence {
@@ -897,12 +897,7 @@ export interface PaginationInfo {
   pages: number;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-  pagination?: PaginationInfo;
-}
+// Duplicate ApiResponse definition is removed; the one above is used.
 
 export interface MedicalCenterResponse {
   _id: string;

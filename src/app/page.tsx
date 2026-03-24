@@ -18,7 +18,7 @@ export default function MedicalLandingPage() {
             </span>
           </h1>
           <p className="text-sm sm:text-lg md:text-xl text-violet-100 mb-6 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
-            Book your next appointment at the medical center of your choice. If you're a medical center,
+            Book your next appointment at the medical center of your choice. If you are a medical center,
             manage your appointments smartly and connect your branches under one network.
           </p>
 

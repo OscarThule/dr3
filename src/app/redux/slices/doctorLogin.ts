@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dmrs.onrender.com/api';
 
-// Define PractitionerSession interface
+// Define PractitionerSession interface - replace any with unknown
 export interface PractitionerSession {
   _id: string;
   idNumber: string;
@@ -15,7 +15,8 @@ export interface PractitionerSession {
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  [key: string]: any;
+  // Allow additional properties but with unknown instead of any
+  [key: string]: unknown;
 }
 
 interface ForgotPasswordResponse {

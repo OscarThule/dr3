@@ -22,7 +22,8 @@ import {
   Activity,
   AlertCircle,
   CheckCircle,
-  Loader2
+  Loader2,
+  LucideIcon
 } from 'lucide-react'
 import type { RootState, AppDispatch } from '@/app/redux/store'
 import { 
@@ -33,6 +34,7 @@ import {
   clearError 
 } from '@/app/reduxPatient/slices/patient/profileSlice'
 
+// ==================== Types ====================
 
 interface PatientFormData {
   firstName: string
@@ -52,24 +54,72 @@ interface FormErrors {
   [key: string]: string
 }
 
-// Create typed hooks
+interface PatientInfo {
+  _id: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  idNumber: string
+  address: string
+  dateOfBirth: string
+  gender: string
+  emergencyContact: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+interface ApiError {
+  message: string
+  status?: number
+}
+
+interface ProfileState {
+  patientInfo: PatientInfo | null
+  loading: boolean
+  error: string | null
+  isAuthenticated: boolean
+}
+
+// Type guard for ApiError
+function isApiError(error: unknown): error is ApiError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'message' in error &&
+    typeof (error as Record<string, unknown>).message === 'string'
+  )
+}
+
+// ==================== Custom Hooks ====================
+
 const useAppDispatch = () => useDispatch<AppDispatch>()
 const useAppSelector = <TSelected = unknown>(
   selector: (state: RootState) => TSelected
 ) => useSelector(selector)
 
+// ==================== Helper Functions ====================
+
+const getErrorMessage = (error: unknown): string => {
+  if (typeof error === 'string') return error
+  if (isApiError(error)) return error.message
+  return 'An unexpected error occurred'
+}
+
+// ==================== Main Component ====================
+
 export default function PatientProfilePage() {
   
   const dispatch = useAppDispatch()
   const router = useRouter()
-  const patientState = useAppSelector((state: RootState) => state.profile)
+  const profileState = useAppSelector((state: RootState) => state.profile) as ProfileState
   
   const { 
     patientInfo = null, 
     loading = false, 
     error = null, 
     isAuthenticated = false 
-  } = patientState || {}
+  } = profileState
   
   const [isLogin, setIsLogin] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
@@ -109,12 +159,12 @@ export default function PatientProfilePage() {
     checkAuthStatus()
   }, [dispatch, patientInfo])
 
-  // Redirect to /patient if authenticated
+  // Redirect to /entry if authenticated
   useEffect(() => {
     if (isAuthenticated && patientInfo) {
       const timer = setTimeout(() => {
         router.push('/entry')
-      }, 1000) // Redirect after 1 second
+      }, 1000)
       return () => clearTimeout(timer)
     }
   }, [isAuthenticated, patientInfo, router])
@@ -193,13 +243,12 @@ export default function PatientProfilePage() {
           password: ''
         }));
         
-        // Redirect to /patient page after a brief delay
         setTimeout(() => {
           router.push('/entry');
         }, 1500);
       }
-    } catch (err: any) {
-      setLocalError(err.message || 'Login failed. Please check your credentials.')
+    } catch (err: unknown) {
+      setLocalError(getErrorMessage(err) || 'Login failed. Please check your credentials.')
     }
   }
 
@@ -245,8 +294,8 @@ export default function PatientProfilePage() {
         })
         setFormErrors({})
       }
-    } catch (err: any) {
-      setLocalError(err.message || 'Registration failed. Please try again.')
+    } catch (err: unknown) {
+      setLocalError(getErrorMessage(err) || 'Registration failed. Please try again.')
     }
   }
 
@@ -254,15 +303,13 @@ export default function PatientProfilePage() {
     try {
       await dispatch(logout())
       setSuccessMessage('Logged out successfully')
-      // Clear any stored tokens
       localStorage.removeItem('patientToken')
       localStorage.removeItem('refreshToken')
-      // Redirect to home page after logout
       setTimeout(() => {
         router.push('/')
       }, 1500)
-    } catch (err: any) {
-      setLocalError(err.message || 'Logout failed')
+    } catch (err: unknown) {
+      setLocalError(getErrorMessage(err) || 'Logout failed')
     }
   }
 
@@ -288,22 +335,21 @@ export default function PatientProfilePage() {
   }
 
   const handleForgotPassword = async () => {
-  const email = prompt('Enter your email to reset password:')
-  if (!email) return
+    const email = prompt('Enter your email to reset password:')
+    if (!email) return
 
-  try {
-    const res = await fetch('https://dmrs.onrender.com/api/patients/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    })
-    const data = await res.json()
-    alert(data.message || 'Check your email for reset link')
-  } catch (err) {
-    alert('Failed to send reset email')
+    try {
+      const res = await fetch('https://dmrs.onrender.com/api/patients/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      const data = await res.json() as { message?: string }
+      alert(data.message || 'Check your email for reset link')
+    } catch (err) {
+      alert('Failed to send reset email')
+    }
   }
-}
-
 
   // Clear messages after 5 seconds
   useEffect(() => {
@@ -366,34 +412,35 @@ export default function PatientProfilePage() {
         )}
 
         {isAuthenticated && patientInfo ? (
-          // Dashboard View - Will redirect to /patient after 1 second
+          // Dashboard View - Will redirect to /entry after 1 second
           <DashboardView patientInfo={patientInfo} onLogout={handleLogout} />
         ) : (
           // Auth Forms View
           <AuthFormsView
-  isLogin={isLogin}
-  formData={formData}
-  formErrors={formErrors}
-  showPassword={showPassword}
-  showConfirmPassword={showConfirmPassword}
-  loading={loading}
-  onInputChange={handleInputChange}
-  onTogglePassword={() => setShowPassword(!showPassword)}
-  onToggleConfirmPassword={() => setShowConfirmPassword(!showConfirmPassword)}
-  onLoginSubmit={handleLogin}
-  onRegisterSubmit={handleRegister}
-  onFormSwitch={handleFormSwitch}
-  onForgotPassword={handleForgotPassword}
-/>
+            isLogin={isLogin}
+            formData={formData}
+            formErrors={formErrors}
+            showPassword={showPassword}
+            showConfirmPassword={showConfirmPassword}
+            loading={loading}
+            onInputChange={handleInputChange}
+            onTogglePassword={() => setShowPassword(!showPassword)}
+            onToggleConfirmPassword={() => setShowConfirmPassword(!showConfirmPassword)}
+            onLoginSubmit={handleLogin}
+            onRegisterSubmit={handleRegister}
+            onFormSwitch={handleFormSwitch}
+            onForgotPassword={handleForgotPassword}
+          />
         )}
       </main>
     </div>
   )
 }
 
-// Dashboard Component
+// ==================== Dashboard Components ====================
+
 interface DashboardViewProps {
-  patientInfo: any
+  patientInfo: PatientInfo
   onLogout: () => void
 }
 
@@ -439,7 +486,13 @@ function DashboardView({ patientInfo, onLogout }: DashboardViewProps) {
 }
 
 // Personal Info Card Component
-function PersonalInfoCard({ patientInfo }: { patientInfo: any }) {
+interface InfoFieldProps {
+  label: string
+  value: string
+  icon?: LucideIcon
+}
+
+function PersonalInfoCard({ patientInfo }: { patientInfo: PatientInfo }) {
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-100">
       <div className="flex items-center justify-between mb-6">
@@ -477,8 +530,20 @@ function PersonalInfoCard({ patientInfo }: { patientInfo: any }) {
   )
 }
 
+function InfoField({ label, value, icon: Icon }: InfoFieldProps) {
+  return (
+    <div className="bg-slate-50 p-4 rounded-xl">
+      <p className="text-sm text-slate-500 mb-1">{label}</p>
+      <div className="flex items-center space-x-2">
+        {Icon && <Icon className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+        <p className="font-semibold text-slate-900 break-words">{value}</p>
+      </div>
+    </div>
+  )
+}
+
 // Medical Info Card Component
-function MedicalInfoCard({ patientInfo }: { patientInfo: any }) {
+function MedicalInfoCard({ patientInfo }: { patientInfo: PatientInfo }) {
   return (
     <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl shadow-lg p-6 border border-blue-100">
       <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center space-x-2">
@@ -507,6 +572,13 @@ function MedicalInfoCard({ patientInfo }: { patientInfo: any }) {
 }
 
 // Quick Stats Card Component
+interface StatItemProps {
+  label: string
+  value: string
+  icon: LucideIcon
+  color: 'green' | 'blue' | 'purple'
+}
+
 function QuickStatsCard() {
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-100">
@@ -519,7 +591,33 @@ function QuickStatsCard() {
   )
 }
 
+function StatItem({ label, value, icon: Icon, color }: StatItemProps) {
+  const colorClasses = {
+    green: 'bg-green-50 text-green-600',
+    blue: 'bg-blue-50 text-blue-600',
+    purple: 'bg-purple-50 text-purple-600'
+  }
+
+  return (
+    <div className={`flex items-center justify-between p-3 ${colorClasses[color]} rounded-lg`}>
+      <div>
+        <p className="text-sm text-slate-600">{label}</p>
+        <p className="text-2xl font-bold">{value}</p>
+      </div>
+      <Icon className="w-8 h-8 opacity-80" />
+    </div>
+  )
+}
+
 // Quick Actions Card Component
+interface QuickActionLinkProps {
+  href: string
+  title: string
+  description: string
+  icon: LucideIcon
+  color: 'green' | 'blue' | 'purple'
+}
+
 function QuickActionsCard() {
   return (
     <div className="bg-white rounded-2xl shadow-lg p-6 border border-slate-100">
@@ -544,6 +642,31 @@ function QuickActionsCard() {
   )
 }
 
+function QuickActionLink({ href, title, description, icon: Icon, color }: QuickActionLinkProps) {
+  const colorClasses = {
+    green: 'bg-green-50 hover:bg-green-100 text-green-600',
+    blue: 'bg-blue-50 hover:bg-blue-100 text-blue-600',
+    purple: 'bg-purple-50 hover:bg-purple-100 text-purple-600'
+  }
+
+  return (
+    <Link href={href}>
+      <div className={`flex items-center justify-between p-4 ${colorClasses[color]} rounded-xl transition-all duration-300 cursor-pointer group`}>
+        <div className="flex items-center space-x-3">
+          <div className={`w-10 h-10 ${color === 'green' ? 'bg-green-100' : color === 'blue' ? 'bg-blue-100' : 'bg-purple-100'} rounded-lg flex items-center justify-center`}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="font-medium text-slate-900">{title}</p>
+            <p className="text-sm text-slate-500">{description}</p>
+          </div>
+        </div>
+        <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600" />
+      </div>
+    </Link>
+  )
+}
+
 // Account Status Card Component
 function AccountStatusCard() {
   return (
@@ -563,7 +686,8 @@ function AccountStatusCard() {
   )
 }
 
-// Auth Forms Component
+// ==================== Auth Forms Components ====================
+
 interface AuthFormsViewProps {
   isLogin: boolean
   formData: PatientFormData
@@ -592,7 +716,8 @@ function AuthFormsView({
   onToggleConfirmPassword,
   onLoginSubmit,
   onRegisterSubmit,
-  onFormSwitch,onForgotPassword
+  onFormSwitch,
+  onForgotPassword
 }: AuthFormsViewProps) {
   return (
     <div className="max-w-4xl mx-auto">
@@ -622,6 +747,7 @@ function AuthFormsView({
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-slate-200">
           <div className="flex mb-6">
             <button
+              type="button"
               onClick={() => !isLogin && onFormSwitch()}
               className={`flex-1 py-3 font-medium transition-all duration-300 ${isLogin 
                 ? 'text-blue-600 border-b-2 border-blue-600' 
@@ -630,6 +756,7 @@ function AuthFormsView({
               Sign In
             </button>
             <button
+              type="button"
               onClick={() => isLogin && onFormSwitch()}
               className={`flex-1 py-3 font-medium transition-all duration-300 ${!isLogin 
                 ? 'text-blue-600 border-b-2 border-blue-600' 
@@ -663,7 +790,7 @@ function AuthFormsView({
             />
           )}
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
             <button
               type="button"
               onClick={onFormSwitch}
@@ -673,18 +800,15 @@ function AuthFormsView({
                 ? "Don't have an account? Register here" 
                 : 'Already have an account? Sign in here'}
             </button>
-     <div className="text-right">
-  <button
-  type="button"
-  onClick={onForgotPassword}
-
-  className="text-sm text-blue-600 hover:text-blue-800"
->
-  Forgot password?
-</button>
-
-</div>
-
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Forgot password?
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -945,63 +1069,14 @@ function RegisterForm({
   )
 }
 
-// Reusable Components
-function InfoField({ label, value, icon: Icon }: { label: string; value: string; icon?: any }) {
-  return (
-    <div className="bg-slate-50 p-4 rounded-xl">
-      <p className="text-sm text-slate-500 mb-1">{label}</p>
-      <div className="flex items-center space-x-2">
-        {Icon && <Icon className="w-4 h-4 text-slate-400 flex-shrink-0" />}
-        <p className="font-semibold text-slate-900 break-words">{value}</p>
-      </div>
-    </div>
-  )
+// Feature Item Component
+interface FeatureItemProps {
+  icon: LucideIcon
+  text: string
+  color: 'green' | 'blue' | 'purple'
 }
 
-function StatItem({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
-  const colorClasses = {
-    green: 'bg-green-50 text-green-600',
-    blue: 'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600'
-  }
-
-  return (
-    <div className={`flex items-center justify-between p-3 ${colorClasses[color as keyof typeof colorClasses]} rounded-lg`}>
-      <div>
-        <p className="text-sm text-slate-600">{label}</p>
-        <p className="text-2xl font-bold">{value}</p>
-      </div>
-      <Icon className="w-8 h-8 opacity-80" />
-    </div>
-  )
-}
-
-function QuickActionLink({ href, title, description, icon: Icon, color }: { href: string; title: string; description: string; icon: any; color: string }) {
-  const colorClasses = {
-    green: 'bg-green-50 hover:bg-green-100 text-green-600',
-    blue: 'bg-blue-50 hover:bg-blue-100 text-blue-600',
-    purple: 'bg-purple-50 hover:bg-purple-100 text-purple-600'
-  }
-
-  return (
-    <Link href={href}>
-      <div className={`flex items-center justify-between p-4 ${colorClasses[color as keyof typeof colorClasses]} rounded-xl transition-all duration-300 cursor-pointer group`}>
-        <div className="flex items-center space-x-3">
-          <div className={`w-10 h-10 ${color === 'green' ? 'bg-green-100' : color === 'blue' ? 'bg-blue-100' : 'bg-purple-100'} rounded-lg flex items-center justify-center`}>
-            <Icon className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="font-medium text-slate-900">{title}</p>
-            <p className="text-sm text-slate-500">{description}</p>
-          </div>
-        </div>
-        <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600" />
-      </div>
-    </Link>
-  )
-}
-
-function FeatureItem({ icon: Icon, text, color }: { icon: any; text: string; color: string }) {
+function FeatureItem({ icon: Icon, text, color }: FeatureItemProps) {
   const colorClasses = {
     green: 'bg-green-100 text-green-600',
     blue: 'bg-blue-100 text-blue-600',
@@ -1010,7 +1085,7 @@ function FeatureItem({ icon: Icon, text, color }: { icon: any; text: string; col
 
   return (
     <div className="flex items-center space-x-3">
-      <div className={`w-8 h-8 ${colorClasses[color as keyof typeof colorClasses]} rounded-lg flex items-center justify-center`}>
+      <div className={`w-8 h-8 ${colorClasses[color]} rounded-lg flex items-center justify-center`}>
         <Icon className="w-4 h-4" />
       </div>
       <span className="text-slate-700">{text}</span>
@@ -1018,6 +1093,7 @@ function FeatureItem({ icon: Icon, text, color }: { icon: any; text: string; col
   )
 }
 
+// Form Field Component
 interface FormFieldProps {
   label: string
   name: string
@@ -1025,7 +1101,7 @@ interface FormFieldProps {
   value: string
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
   error?: string
-  icon?: any
+  icon?: LucideIcon
   iconClassName?: string
   placeholder?: string
   disabled?: boolean
@@ -1086,7 +1162,14 @@ function FormField({
   )
 }
 
-function SubmitButton({ loading, text, loadingText }: { loading: boolean; text: string; loadingText: string }) {
+// Submit Button Component
+interface SubmitButtonProps {
+  loading: boolean
+  text: string
+  loadingText: string
+}
+
+function SubmitButton({ loading, text, loadingText }: SubmitButtonProps) {
   return (
     <button
       type="submit"

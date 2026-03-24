@@ -1,6 +1,14 @@
-'use client'
+'use client';
 
-import { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  memo,
+  ReactNode,
+  ElementType,
+} from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DoctorNav from '@/app/(medical-center)/components/DoctorNav';
@@ -90,7 +98,13 @@ type AppointmentStatus =
   | 'no-show'
   | 'rescheduled';
 
-type ConsultationType = 'online' | 'offline' | 'face-to-face' | 'telemedicine' | 'follow-up';
+type ConsultationType =
+  | 'online'
+  | 'offline'
+  | 'face-to-face'
+  | 'telemedicine'
+  | 'follow-up';
+
 type Urgency = 'emergency' | 'urgent' | 'routine';
 type PatientSector = 'government' | 'private';
 type PaymentStatus = 'pending' | 'success' | 'failed' | 'refunded' | 'none';
@@ -98,47 +112,37 @@ type PaymentStatus = 'pending' | 'success' | 'failed' | 'refunded' | 'none';
 interface Booking {
   _id: string;
   appointment_id?: string;
-
   patientId?: string;
   patient_id?: string;
   patientFileId?: string;
-
   patientName: string;
   patientEmail: string;
   patientPhone: string;
   patientAge: number;
   patientGender: string;
   emergencyContact: string;
-
   medicalCondition: string;
   symptoms: string;
   notes: string;
-
   preferredDate: string;
   preferredTime: string;
   assignedDate: string;
   assignedTime: string;
-
   status: AppointmentStatus;
   urgency: Urgency;
   patientSector: PatientSector;
   consultationType: ConsultationType;
-
   autoApproved: boolean;
   assignedDoctor: string;
   doctorName: string;
   doctorSpecialization: string[];
-
   appointmentDate: Date | string;
   slotStart: string;
   slotEnd: string;
-
   createdAt: Date | string;
   updatedAt: Date | string;
-
   isShiftedSlot?: boolean;
   shiftNotes?: string;
-
   consultation_fee?: number;
   deposit_amount?: number;
   platform_fee?: number;
@@ -160,27 +164,23 @@ interface Doctor {
   isActive: boolean;
 }
 
-interface MedicalCenterSettings {
-  _id: string;
-  facility_name: string;
-  address: string;
-  phone: string;
-  email: string;
-  doctors: Doctor[];
-  settings: {
-    appointment_duration: number;
-    buffer_time: number;
-    max_daily_appointments: number;
-  };
-}
-
 interface StatCardProps {
   title: string;
   value: string | number;
-  icon: React.ReactNode;
+  icon: ReactNode;
   trend?: number;
   color: 'blue' | 'green' | 'purple' | 'orange' | 'red';
   description?: string;
+}
+
+// Badge variant type used across components
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple';
+
+// Filter structure used in the UI
+interface Filters {
+  status: string;
+  date: string;
+  practitioner: string;
 }
 
 // ============ HELPERS ============
@@ -203,108 +203,115 @@ const toNumber = (value: unknown) => Number(value || 0);
 
 // ============ MEMOIZED COMPONENTS ============
 
-const ModernCard = memo(({
-  children,
-  className = '',
-  hover = true,
-  glass = false
-}: {
-  children: React.ReactNode;
-  className?: string;
-  hover?: boolean;
-  glass?: boolean;
-}) => (
-  <div
-    className={`
+const ModernCard = memo(
+  ({
+    children,
+    className = '',
+    hover = true,
+    glass = false,
+  }: {
+    children: ReactNode;
+    className?: string;
+    hover?: boolean;
+    glass?: boolean;
+  }) => (
+    <div
+      className={`
       bg-white/90 backdrop-blur-lg rounded-2xl border border-white/40 shadow-lg shadow-black/5
       ${hover ? 'hover:shadow-xl hover:shadow-black/10 hover:-translate-y-0.5' : ''}
       ${glass ? 'backdrop-blur-xl bg-white/60 border-white/30' : ''}
       transition-all duration-300
       ${className}
     `}
-  >
-    {children}
-  </div>
-));
+    >
+      {children}
+    </div>
+  ),
+);
+ModernCard.displayName = 'ModernCard';
 
-const Badge = memo(({
-  children,
-  variant = 'default',
-  size = 'sm'
-}: {
-  children: React.ReactNode;
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'purple';
-  size?: 'sm' | 'md' | 'lg';
-}) => {
-  const variantClasses = {
-    default: 'bg-gray-100 text-gray-800 border-gray-200',
-    success: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-    warning: 'bg-amber-100 text-amber-800 border-amber-200',
-    danger: 'bg-red-100 text-red-800 border-red-200',
-    info: 'bg-blue-100 text-blue-800 border-blue-200',
-    purple: 'bg-violet-100 text-violet-800 border-violet-200',
-  };
+const Badge = memo(
+  ({
+    children,
+    variant = 'default',
+    size = 'sm',
+  }: {
+    children: ReactNode;
+    variant?: BadgeVariant;
+    size?: 'sm' | 'md' | 'lg';
+  }) => {
+    const variantClasses: Record<BadgeVariant, string> = {
+      default: 'bg-gray-100 text-gray-800 border-gray-200',
+      success: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      warning: 'bg-amber-100 text-amber-800 border-amber-200',
+      danger: 'bg-red-100 text-red-800 border-red-200',
+      info: 'bg-blue-100 text-blue-800 border-blue-200',
+      purple: 'bg-violet-100 text-violet-800 border-violet-200',
+    };
 
-  const sizeClasses = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-3 py-1 text-sm',
-    lg: 'px-4 py-1.5 text-base',
-  };
+    const sizeClasses = {
+      sm: 'px-2 py-0.5 text-xs',
+      md: 'px-3 py-1 text-sm',
+      lg: 'px-4 py-1.5 text-base',
+    };
 
-  return (
-    <span
-      className={`
+    return (
+      <span
+        className={`
         inline-flex items-center rounded-full border font-medium
         ${variantClasses[variant]}
         ${sizeClasses[size]}
       `}
-    >
-      {children}
-    </span>
-  );
-});
+      >
+        {children}
+      </span>
+    );
+  },
+);
+Badge.displayName = 'Badge';
 
-const StatCard = memo(({
-  title,
-  value,
-  icon,
-  trend,
-  color = 'blue',
-  description
-}: StatCardProps) => {
-  const colorClasses = {
-    blue: 'from-blue-500 to-blue-600',
-    green: 'from-emerald-500 to-emerald-600',
-    purple: 'from-violet-500 to-violet-600',
-    orange: 'from-amber-500 to-amber-600',
-    red: 'from-rose-500 to-rose-600',
-  };
+const StatCard = memo(
+  ({ title, value, icon, trend, color = 'blue', description }: StatCardProps) => {
+    const colorClasses: Record<StatCardProps['color'], string> = {
+      blue: 'from-blue-500 to-blue-600',
+      green: 'from-emerald-500 to-emerald-600',
+      purple: 'from-violet-500 to-violet-600',
+      orange: 'from-amber-500 to-amber-600',
+      red: 'from-rose-500 to-rose-600',
+    };
 
-  return (
-    <ModernCard className="p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-          {description && (
-            <p className="text-xs text-gray-500 mt-1">{description}</p>
-          )}
-          {trend !== undefined && (
-            <div className="flex items-center mt-2">
-              <span className={`text-sm font-medium ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {trend >= 0 ? '+' : ''}{trend}%
-              </span>
-              <span className="text-sm text-gray-500 ml-2">from yesterday</span>
-            </div>
-          )}
+    return (
+      <ModernCard className="p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+            {description && (
+              <p className="text-xs text-gray-500 mt-1">{description}</p>
+            )}
+            {trend !== undefined && (
+              <div className="flex items-center mt-2">
+                <span
+                  className={`text-sm font-medium ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                >
+                  {trend >= 0 ? '+' : ''}
+                  {trend}%
+                </span>
+                <span className="text-sm text-gray-500 ml-2">from yesterday</span>
+              </div>
+            )}
+          </div>
+          <div
+            className={`p-3 rounded-xl bg-gradient-to-br ${colorClasses[color]} text-white`}
+          >
+            {icon}
+          </div>
         </div>
-        <div className={`p-3 rounded-xl bg-gradient-to-br ${colorClasses[color]} text-white`}>
-          {icon}
-        </div>
-      </div>
-    </ModernCard>
-  );
-});
+      </ModernCard>
+    );
+  },
+);
+StatCard.displayName = 'StatCard';
 
 const LoadingSkeleton = memo(() => (
   <div className="space-y-4">
@@ -328,6 +335,44 @@ const LoadingSkeleton = memo(() => (
     ))}
   </div>
 ));
+LoadingSkeleton.displayName = 'LoadingSkeleton';
+
+const EmptyState = memo(
+  ({
+    searchTerm,
+    filters,
+    onClear,
+  }: {
+    searchTerm: string;
+    filters: Filters;
+    onClear: () => void;
+  }) => (
+    <ModernCard className="text-center py-16">
+      <div className="max-w-md mx-auto">
+        <div className="w-20 h-20 mx-auto mb-6 bg-blue-50 rounded-2xl flex items-center justify-center">
+          <CalendarDays className="w-10 h-10 text-blue-600" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">
+          No appointments found
+        </h3>
+        <p className="text-gray-600 mb-6">
+          {searchTerm || Object.values(filters).some((f) => f)
+            ? 'Try adjusting your search or filters'
+            : 'When patients book appointments, they will appear here.'}
+        </p>
+        {(searchTerm || Object.values(filters).some((f) => f)) && (
+          <button
+            onClick={onClear}
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+          >
+            Clear all filters
+          </button>
+        )}
+      </div>
+    </ModernCard>
+  ),
+);
+EmptyState.displayName = 'EmptyState';
 
 // ============ MAIN COMPONENT ============
 
@@ -349,9 +394,11 @@ export default function DoctorAppointments() {
     success,
     filters,
     medicalCenterId,
-  } = useAppSelector(state => state.mainPage);
+  } = useAppSelector((state) => state.mainPage);
 
-  const [activeTab, setActiveTab] = useState<'today' | 'tomorrow' | 'upcoming' | 'past'>('today');
+  const [activeTab, setActiveTab] = useState<'today' | 'tomorrow' | 'upcoming' | 'past'>(
+    'today',
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -409,20 +456,27 @@ export default function DoctorAppointments() {
 
       const matchesStatus = !filters.status || apt.status === filters.status;
       const matchesDate = !filters.date || apt.assignedDate === filters.date;
-      const matchesPractitioner = !filters.practitioner || apt.assignedDoctor === filters.practitioner;
+      const matchesPractitioner =
+        !filters.practitioner || apt.assignedDoctor === filters.practitioner;
 
       return matchesSearch && matchesStatus && matchesDate && matchesPractitioner;
     });
   }, [appointments, searchTerm, filters]);
 
   const todaysAppointments = useMemo(
-    () => filteredAppointments.filter((apt: Booking) => isToday(new Date(getEffectiveDate(apt)))),
-    [filteredAppointments, isToday, getEffectiveDate]
+    () =>
+      filteredAppointments.filter((apt: Booking) =>
+        isToday(new Date(getEffectiveDate(apt))),
+      ),
+    [filteredAppointments, isToday, getEffectiveDate],
   );
 
   const tomorrowsAppointments = useMemo(
-    () => filteredAppointments.filter((apt: Booking) => isTomorrow(new Date(getEffectiveDate(apt)))),
-    [filteredAppointments, isTomorrow, getEffectiveDate]
+    () =>
+      filteredAppointments.filter((apt: Booking) =>
+        isTomorrow(new Date(getEffectiveDate(apt))),
+      ),
+    [filteredAppointments, isTomorrow, getEffectiveDate],
   );
 
   const upcomingAppointments = useMemo(
@@ -431,53 +485,71 @@ export default function DoctorAppointments() {
         const date = new Date(getEffectiveDate(apt));
         return !isToday(date) && !isTomorrow(date) && date > new Date();
       }),
-    [filteredAppointments, isToday, isTomorrow, getEffectiveDate]
+    [filteredAppointments, isToday, isTomorrow, getEffectiveDate],
   );
 
   const pastAppointments = useMemo(
-    () => filteredAppointments.filter((apt: Booking) => new Date(getEffectiveDate(apt)) < new Date()),
-    [filteredAppointments, getEffectiveDate]
+    () =>
+      filteredAppointments.filter(
+        (apt: Booking) => new Date(getEffectiveDate(apt)) < new Date(),
+      ),
+    [filteredAppointments, getEffectiveDate],
   );
 
   // Revenue helpers
-  const calculateRevenue = useCallback((items: Booking[]) => {
-    return items.reduce(
-      (acc, apt) => {
-        const paid = toNumber(apt.payment_amount_paid);
-        const expected = toNumber(apt.total_amount);
-        const consultation = toNumber(apt.consultation_fee);
-        const deposit = toNumber(apt.deposit_amount);
-        const platform = toNumber(apt.platform_fee);
+  const calculateRevenue = useCallback(
+    (items: Booking[]) => {
+      return items.reduce(
+        (acc, apt) => {
+          const paid = toNumber(apt.payment_amount_paid);
+          const expected = toNumber(apt.total_amount);
+          const consultation = toNumber(apt.consultation_fee);
+          const deposit = toNumber(apt.deposit_amount);
+          const platform = toNumber(apt.platform_fee);
 
-        acc.totalPaid += paid;
-        acc.totalExpected += expected;
-        acc.totalConsultation += consultation;
-        acc.totalDeposits += deposit;
-        acc.totalPlatformFees += platform;
+          acc.totalPaid += paid;
+          acc.totalExpected += expected;
+          acc.totalConsultation += consultation;
+          acc.totalDeposits += deposit;
+          acc.totalPlatformFees += platform;
 
-        if (apt.payment_status === 'success') acc.successfulPayments += 1;
-        if (apt.payment_status === 'pending') acc.pendingPayments += 1;
-        if (apt.payment_status === 'failed') acc.failedPayments += 1;
+          if (apt.payment_status === 'success') acc.successfulPayments += 1;
+          if (apt.payment_status === 'pending') acc.pendingPayments += 1;
+          if (apt.payment_status === 'failed') acc.failedPayments += 1;
 
-        return acc;
-      },
-      {
-        totalPaid: 0,
-        totalExpected: 0,
-        totalConsultation: 0,
-        totalDeposits: 0,
-        totalPlatformFees: 0,
-        successfulPayments: 0,
-        pendingPayments: 0,
-        failedPayments: 0,
-      }
-    );
-  }, []);
+          return acc;
+        },
+        {
+          totalPaid: 0,
+          totalExpected: 0,
+          totalConsultation: 0,
+          totalDeposits: 0,
+          totalPlatformFees: 0,
+          successfulPayments: 0,
+          pendingPayments: 0,
+          failedPayments: 0,
+        },
+      );
+    },
+    [],
+  );
 
-  const todayRevenue = useMemo(() => calculateRevenue(todaysAppointments), [todaysAppointments, calculateRevenue]);
-  const tomorrowRevenue = useMemo(() => calculateRevenue(tomorrowsAppointments), [tomorrowsAppointments, calculateRevenue]);
-  const upcomingRevenue = useMemo(() => calculateRevenue(upcomingAppointments), [upcomingAppointments, calculateRevenue]);
-  const totalRevenue = useMemo(() => calculateRevenue(filteredAppointments), [filteredAppointments, calculateRevenue]);
+  const todayRevenue = useMemo(
+    () => calculateRevenue(todaysAppointments),
+    [todaysAppointments, calculateRevenue],
+  );
+  const tomorrowRevenue = useMemo(
+    () => calculateRevenue(tomorrowsAppointments),
+    [tomorrowsAppointments, calculateRevenue],
+  );
+  const upcomingRevenue = useMemo(
+    () => calculateRevenue(upcomingAppointments),
+    [upcomingAppointments, calculateRevenue],
+  );
+  const totalRevenue = useMemo(
+    () => calculateRevenue(filteredAppointments),
+    [filteredAppointments, calculateRevenue],
+  );
 
   const statsWithBreakdown = useMemo(() => {
     const totalAppointments = appointments.length;
@@ -493,7 +565,8 @@ export default function DoctorAppointments() {
       pending,
       cancelled,
       completed,
-      confirmationRate: totalAppointments > 0 ? Math.round((confirmed / totalAppointments) * 100) : 0,
+      confirmationRate:
+        totalAppointments > 0 ? Math.round((confirmed / totalAppointments) * 100) : 0,
     };
   }, [appointments, stats]);
 
@@ -505,10 +578,10 @@ export default function DoctorAppointments() {
       try {
         await Promise.all([
           dispatch(fetchAppointments({})),
-          dispatch(loadMedicalCenterSettings())
+          dispatch(loadMedicalCenterSettings()),
         ]);
       } catch (error) {
-        if ((error as any)?.message?.includes('Session expired')) {
+        if (error instanceof Error && error.message?.includes('Session expired')) {
           dispatch(clearAuth());
           router.push('/medical');
         }
@@ -522,7 +595,7 @@ export default function DoctorAppointments() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const socket = socketService.connect();
+    socketService.connect();
     socketService.joinRoom('doctors');
 
     const handleNewBooking = () => {
@@ -530,10 +603,12 @@ export default function DoctorAppointments() {
     };
 
     const handleBookingUpdated = (data: { booking: Booking }) => {
-      dispatch(updateAppointmentInList({
-        bookingId: data.booking._id,
-        updates: data.booking
-      }));
+      dispatch(
+        updateAppointmentInList({
+          bookingId: data.booking._id,
+          updates: data.booking,
+        }),
+      );
     };
 
     socketService.onEvent('newBooking', handleNewBooking);
@@ -575,43 +650,52 @@ export default function DoctorAppointments() {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
     });
   }, []);
 
-  const getStatusConfig = useCallback((status: AppointmentStatus) => {
-    const configs = {
-      confirmed: { color: 'success', icon: CheckCircle, label: 'Confirmed' },
-      pending: { color: 'warning', icon: Clock, label: 'Pending' },
-      cancelled: { color: 'danger', icon: X, label: 'Cancelled' },
-      completed: { color: 'success', icon: CheckCircle, label: 'Completed' },
-      'no-show': { color: 'danger', icon: X, label: 'No Show' },
-      rescheduled: { color: 'info', icon: RefreshCw, label: 'Rescheduled' },
-    };
-    return configs[status] || { color: 'default', icon: Clock, label: status };
-  }, []);
+  const getStatusConfig = useCallback(
+    (status: AppointmentStatus): { color: BadgeVariant; icon: ElementType; label: string } => {
+      const configs = {
+        confirmed: { color: 'success' as const, icon: CheckCircle, label: 'Confirmed' },
+        pending: { color: 'warning' as const, icon: Clock, label: 'Pending' },
+        cancelled: { color: 'danger' as const, icon: X, label: 'Cancelled' },
+        completed: { color: 'success' as const, icon: CheckCircle, label: 'Completed' },
+        'no-show': { color: 'danger' as const, icon: X, label: 'No Show' },
+        rescheduled: { color: 'info' as const, icon: RefreshCw, label: 'Rescheduled' },
+      };
+      return configs[status] || { color: 'default' as const, icon: Clock, label: status };
+    },
+    [],
+  );
 
-  const getPaymentStatusConfig = useCallback((status?: PaymentStatus) => {
-    const configs = {
-      success: { color: 'success', label: 'Paid' },
-      pending: { color: 'warning', label: 'Payment Pending' },
-      failed: { color: 'danger', label: 'Payment Failed' },
-      refunded: { color: 'info', label: 'Refunded' },
-      none: { color: 'default', label: 'No Payment' },
-    };
-    return configs[status || 'none'] || configs.none;
-  }, []);
+  const getPaymentStatusConfig = useCallback(
+    (status?: PaymentStatus): { color: BadgeVariant; label: string } => {
+      const configs = {
+        success: { color: 'success' as const, label: 'Paid' },
+        pending: { color: 'warning' as const, label: 'Payment Pending' },
+        failed: { color: 'danger' as const, label: 'Payment Failed' },
+        refunded: { color: 'info' as const, label: 'Refunded' },
+        none: { color: 'default' as const, label: 'No Payment' },
+      };
+      return configs[status || 'none'] || configs.none;
+    },
+    [],
+  );
 
   const getUrgencyIcon = useCallback((urgency: Urgency) => {
     switch (urgency) {
-      case 'emergency': return <Activity className="w-4 h-4 text-red-600" />;
-      case 'urgent': return <AlertCircle className="w-4 h-4 text-amber-600" />;
-      default: return <Clock4 className="w-4 h-4 text-blue-600" />;
+      case 'emergency':
+        return <Activity className="w-4 h-4 text-red-600" />;
+      case 'urgent':
+        return <AlertCircle className="w-4 h-4 text-amber-600" />;
+      default:
+        return <Clock4 className="w-4 h-4 text-blue-600" />;
     }
   }, []);
 
   const getSpecializationIcon = useCallback((specialization: string) => {
-    const icons: Record<string, React.ReactNode> = {
+    const icons: Record<string, ReactNode> = {
       cardiology: <Heart className="w-4 h-4 text-red-500" />,
       neurology: <Brain className="w-4 h-4 text-purple-500" />,
       orthopedics: <Bone className="w-4 h-4 text-amber-500" />,
@@ -625,11 +709,18 @@ export default function DoctorAppointments() {
       surgery: <Syringe className="w-4 h-4 text-red-400" />,
       emergency: <Hospital className="w-4 h-4 text-red-600" />,
     };
-    return icons[specialization?.toLowerCase()] || <Stethoscope className="w-4 h-4 text-gray-400" />;
+    return icons[specialization?.toLowerCase()] || (
+      <Stethoscope className="w-4 h-4 text-gray-400" />
+    );
   }, []);
 
   const getPatientFileId = useCallback((appointment: Booking) => {
-    return appointment.patientFileId || appointment.patientId || appointment.patient_id || appointment._id;
+    return (
+      appointment.patientFileId ||
+      appointment.patientId ||
+      appointment.patient_id ||
+      appointment._id
+    );
   }, []);
 
   // Appointment Card Component
@@ -640,7 +731,7 @@ export default function DoctorAppointments() {
 
     const remainingBalance = Math.max(
       toNumber(appointment.consultation_fee) - toNumber(appointment.deposit_amount),
-      0
+      0,
     );
 
     const patientFileId = getPatientFileId(appointment);
@@ -655,14 +746,16 @@ export default function DoctorAppointments() {
                 <User className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{appointment.patientName}</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {appointment.patientName}
+                </h3>
                 <div className="flex items-center flex-wrap gap-2 mt-1">
-                  <Badge variant={statusConfig.color as any}>
+                  <Badge variant={statusConfig.color}>
                     <StatusIcon className="w-3 h-3 mr-1" />
                     {statusConfig.label}
                   </Badge>
 
-                  <Badge variant={paymentConfig.color as any}>
+                  <Badge variant={paymentConfig.color}>
                     <CreditCard className="w-3 h-3 mr-1" />
                     {paymentConfig.label}
                   </Badge>
@@ -672,8 +765,8 @@ export default function DoctorAppointments() {
                       appointment.urgency === 'emergency'
                         ? 'danger'
                         : appointment.urgency === 'urgent'
-                        ? 'warning'
-                        : 'default'
+                          ? 'warning'
+                          : 'default'
                     }
                   >
                     {getUrgencyIcon(appointment.urgency)}
@@ -701,7 +794,9 @@ export default function DoctorAppointments() {
                 <Stethoscope className="w-4 h-4 text-gray-500" />
                 <span className="font-medium text-gray-700">Medical Condition</span>
               </div>
-              <p className="text-gray-900">{appointment.medicalCondition || 'Not specified'}</p>
+              <p className="text-gray-900">
+                {appointment.medicalCondition || 'Not specified'}
+              </p>
 
               {appointment.symptoms && (
                 <>
@@ -743,59 +838,56 @@ export default function DoctorAppointments() {
                 <span className="font-medium text-gray-700">Appointment Time</span>
               </div>
 
-              
-  <div className="grid grid-cols-2 gap-3">
-    <div className="flex items-center space-x-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-      <Calendar className="w-4 h-4 text-blue-600" />
-      <span className="font-medium text-gray-800 text-sm">
-        {formatDate(getEffectiveDate(appointment))}
-      </span>
-    </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center space-x-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  <span className="font-medium text-gray-800 text-sm">
+                    {formatDate(getEffectiveDate(appointment))}
+                  </span>
+                </div>
 
-    <div className="flex items-center space-x-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-      <Clock className="w-4 h-4 text-blue-600" />
-      <span className="font-medium text-gray-800 text-sm">
-        {formatTime(getEffectiveTime(appointment))}
-      </span>
-    </div>
-  </div>
+                <div className="flex items-center space-x-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  <span className="font-medium text-gray-800 text-sm">
+                    {formatTime(getEffectiveTime(appointment))}
+                  </span>
+                </div>
+              </div>
 
               <div className="flex items-center space-x-2">
                 <UserCheck className="w-4 h-4 text-gray-500" />
                 <span className="font-medium text-gray-700">Patient Details</span>
               </div>
 
-             <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                  <Phone className="w-4 h-4 text-gray-600" />
+                  <span className="text-gray-800 text-sm font-medium">
+                    {appointment.patientPhone}
+                  </span>
+                </div>
 
-    <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-      <Phone className="w-4 h-4 text-gray-600" />
-      <span className="text-gray-800 text-sm font-medium">
-        {appointment.patientPhone}
-      </span>
-    </div>
+                <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                  <Mail className="w-4 h-4 text-gray-600" />
+                  <span className="text-gray-800 text-sm truncate font-medium">
+                    {appointment.patientEmail}
+                  </span>
+                </div>
 
-    <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-      <Mail className="w-4 h-4 text-gray-600" />
-      <span className="text-gray-800 text-sm truncate font-medium">
-        {appointment.patientEmail}
-      </span>
-    </div>
+                <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                  <User className="w-4 h-4 text-gray-600" />
+                  <span className="text-gray-800 text-sm font-medium">
+                    {appointment.patientAge} yrs • {appointment.patientGender}
+                  </span>
+                </div>
 
-    <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-      <User className="w-4 h-4 text-gray-600" />
-      <span className="text-gray-800 text-sm font-medium">
-        {appointment.patientAge} yrs • {appointment.patientGender}
-      </span>
-    </div>
-
-    <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
-      <ShieldCheck className="w-4 h-4 text-gray-600" />
-      <span className="text-gray-800 text-sm font-medium capitalize">
-        {appointment.patientSector}
-      </span>
-    </div>
-
-  </div>
+                <div className="flex items-center space-x-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
+                  <ShieldCheck className="w-4 h-4 text-gray-600" />
+                  <span className="text-gray-800 text-sm font-medium capitalize">
+                    {appointment.patientSector}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -806,7 +898,7 @@ export default function DoctorAppointments() {
                 <Wallet className="w-4 h-4 text-emerald-700" />
                 <span className="font-semibold text-emerald-900">Payment Summary</span>
               </div>
-              <Badge variant={paymentConfig.color as any} size="sm">
+              <Badge variant={paymentConfig.color} size="sm">
                 <Receipt className="w-3 h-3 mr-1" />
                 {paymentConfig.label}
               </Badge>
@@ -841,8 +933,6 @@ export default function DoctorAppointments() {
                 </p>
               </div>
 
-             
-
               <div className="bg-white/70 rounded-xl p-3 border border-white">
                 <p className="text-gray-500">Balance Left</p>
                 <p className="font-bold text-amber-700">
@@ -870,7 +960,8 @@ export default function DoctorAppointments() {
                 </Badge>
               )}
 
-              {(appointment.consultationType === 'online' || appointment.consultationType === 'telemedicine') && (
+              {(appointment.consultationType === 'online' ||
+                appointment.consultationType === 'telemedicine') && (
                 <Badge variant="purple" size="sm">
                   <Video className="w-3 h-3 mr-1" />
                   Online
@@ -906,10 +997,14 @@ export default function DoctorAppointments() {
               </button>
 
               <button
-                onClick={() => dispatch(cancelAppointment({
-                  bookingId: appointment._id,
-                  reason: 'Cancelled by medical center'
-                }))}
+                onClick={() =>
+                  dispatch(
+                    cancelAppointment({
+                      bookingId: appointment._id,
+                      reason: 'Cancelled by medical center',
+                    }),
+                  )
+                }
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm flex items-center space-x-2"
               >
                 <Trash2 className="w-4 h-4" />
@@ -921,33 +1016,7 @@ export default function DoctorAppointments() {
       </ModernCard>
     );
   });
-
-  const EmptyState = memo(() => (
-    <ModernCard className="text-center py-16">
-      <div className="max-w-md mx-auto">
-        <div className="w-20 h-20 mx-auto mb-6 bg-blue-50 rounded-2xl flex items-center justify-center">
-          <CalendarDays className="w-10 h-10 text-blue-600" />
-        </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">No appointments found</h3>
-        <p className="text-gray-600 mb-6">
-          {searchTerm || Object.values(filters).some(f => f)
-            ? 'Try adjusting your search or filters'
-            : 'When patients book appointments, they will appear here.'}
-        </p>
-        {(searchTerm || Object.values(filters).some(f => f)) && (
-          <button
-            onClick={() => {
-              dispatch(setSearchTerm(''));
-              dispatch(clearFilters());
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
-          >
-            Clear all filters
-          </button>
-        )}
-      </div>
-    </ModernCard>
-  ));
+  AppointmentCard.displayName = 'AppointmentCard';
 
   if (!isAuthenticated) {
     return (
@@ -1035,13 +1104,14 @@ export default function DoctorAppointments() {
                   </h1>
                   {medicalCenterSettings && (
                     <p className="text-gray-600 text-sm">
-                      {medicalCenterSettings.facility_name} • ID: {medicalCenterId?.slice(-8)}
+                      {medicalCenterSettings.facility_name} • ID:{' '}
+                      {medicalCenterId?.slice(-8)}
                     </p>
                   )}
                 </div>
               </div>
               <p className="text-gray-600 mt-1 text-sm">
-                Manage your medical center's appointments, payments, and patient files
+                Manage your medical center&apos;s appointments, payments, and patient files
               </p>
             </div>
 
@@ -1166,7 +1236,9 @@ export default function DoctorAppointments() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500">Pending</p>
-                <p className="text-lg font-bold text-amber-600">{statsWithBreakdown.pending}</p>
+                <p className="text-lg font-bold text-amber-600">
+                  {statsWithBreakdown.pending}
+                </p>
               </div>
               <Clock className="w-5 h-5 text-amber-400" />
             </div>
@@ -1176,7 +1248,9 @@ export default function DoctorAppointments() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500">Completed</p>
-                <p className="text-lg font-bold text-emerald-600">{statsWithBreakdown.completed}</p>
+                <p className="text-lg font-bold text-emerald-600">
+                  {statsWithBreakdown.completed}
+                </p>
               </div>
               <Check className="w-5 h-5 text-emerald-400" />
             </div>
@@ -1186,7 +1260,9 @@ export default function DoctorAppointments() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500">Cancelled</p>
-                <p className="text-lg font-bold text-red-600">{statsWithBreakdown.cancelled}</p>
+                <p className="text-lg font-bold text-red-600">
+                  {statsWithBreakdown.cancelled}
+                </p>
               </div>
               <X className="w-5 h-5 text-red-400" />
             </div>
@@ -1197,7 +1273,11 @@ export default function DoctorAppointments() {
               <div>
                 <p className="text-xs text-gray-500">Urgent Cases</p>
                 <p className="text-lg font-bold text-red-600">
-                  {appointments.filter((a: Booking) => a.urgency === 'urgent' || a.urgency === 'emergency').length}
+                  {
+                    appointments.filter(
+                      (a: Booking) => a.urgency === 'urgent' || a.urgency === 'emergency',
+                    ).length
+                  }
                 </p>
               </div>
               <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -1250,7 +1330,7 @@ export default function DoctorAppointments() {
               >
                 <Filter className="w-4 h-4 group-hover:rotate-90 transition-transform" />
                 <span>Filters</span>
-                {Object.values(filters).some(f => f) && (
+                {Object.values(filters).some((f) => f) && (
                   <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
                 )}
               </button>
@@ -1284,7 +1364,9 @@ export default function DoctorAppointments() {
                   <div className="relative">
                     <select
                       value={filters.status}
-                      onChange={(e) => dispatch(setFilter({ key: 'status', value: e.target.value }))}
+                      onChange={(e) =>
+                        dispatch(setFilter({ key: 'status', value: e.target.value }))
+                      }
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none"
                     >
                       <option value="">All Status</option>
@@ -1306,7 +1388,9 @@ export default function DoctorAppointments() {
                   <input
                     type="date"
                     value={filters.date}
-                    onChange={(e) => dispatch(setFilter({ key: 'date', value: e.target.value }))}
+                    onChange={(e) =>
+                      dispatch(setFilter({ key: 'date', value: e.target.value }))
+                    }
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   />
                 </div>
@@ -1318,7 +1402,9 @@ export default function DoctorAppointments() {
                   <div className="relative">
                     <select
                       value={filters.practitioner}
-                      onChange={(e) => dispatch(setFilter({ key: 'practitioner', value: e.target.value }))}
+                      onChange={(e) =>
+                        dispatch(setFilter({ key: 'practitioner', value: e.target.value }))
+                      }
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none"
                     >
                       <option value="">All Practitioners</option>
@@ -1337,7 +1423,10 @@ export default function DoctorAppointments() {
             <div className="flex items-center justify-between pt-4 border-t border-gray-200">
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <Bell className="w-4 h-4" />
-                <span>Showing {filteredAppointments.length} of {appointments.length} appointments</span>
+                <span>
+                  Showing {filteredAppointments.length} of {appointments.length}{' '}
+                  appointments
+                </span>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -1369,19 +1458,41 @@ export default function DoctorAppointments() {
         <div className="mb-6">
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-2xl">
             {[
-              { id: 'today', label: 'Today', count: todaysAppointments.length, icon: <CalendarCheck className="w-4 h-4" /> },
-              { id: 'tomorrow', label: 'Tomorrow', count: tomorrowsAppointments.length, icon: <CalendarDays className="w-4 h-4" /> },
-              { id: 'upcoming', label: 'Upcoming', count: upcomingAppointments.length, icon: <Calendar className="w-4 h-4" /> },
-              { id: 'past', label: 'Past', count: pastAppointments.length, icon: <Clock4 className="w-4 h-4" /> },
+              {
+                id: 'today',
+                label: 'Today',
+                count: todaysAppointments.length,
+                icon: <CalendarCheck className="w-4 h-4" />,
+              },
+              {
+                id: 'tomorrow',
+                label: 'Tomorrow',
+                count: tomorrowsAppointments.length,
+                icon: <CalendarDays className="w-4 h-4" />,
+              },
+              {
+                id: 'upcoming',
+                label: 'Upcoming',
+                count: upcomingAppointments.length,
+                icon: <Calendar className="w-4 h-4" />,
+              },
+              {
+                id: 'past',
+                label: 'Past',
+                count: pastAppointments.length,
+                icon: <Clock4 className="w-4 h-4" />,
+              },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'upcoming' | 'today' | 'tomorrow' | 'past')}
                 className={`
                   flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all duration-300
-                  ${activeTab === tab.id
-                    ? 'bg-white text-blue-600 shadow-lg scale-[1.02]'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'}
+                  ${
+                    activeTab === tab.id
+                      ? 'bg-white text-blue-600 shadow-lg scale-[1.02]'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  }
                 `}
               >
                 <div className="flex items-center justify-center space-x-2">
@@ -1390,7 +1501,11 @@ export default function DoctorAppointments() {
                   <span
                     className={`
                       px-2 py-0.5 rounded-full text-xs font-bold min-w-[24px] text-center
-                      ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'}
+                      ${
+                        activeTab === tab.id
+                          ? 'bg-blue-100 text-blue-600'
+                          : 'bg-gray-200 text-gray-600'
+                      }
                     `}
                   >
                     {tab.count}
@@ -1439,11 +1554,20 @@ export default function DoctorAppointments() {
 
         {/* Appointments List */}
         <div className="space-y-4">
-          {appointmentsToShow.length === 0
-            ? <EmptyState />
-            : appointmentsToShow.map((appointment: Booking) => (
-                <AppointmentCard key={appointment._id} appointment={appointment} />
-              ))}
+          {appointmentsToShow.length === 0 ? (
+            <EmptyState
+              searchTerm={searchTerm}
+              filters={filters}
+              onClear={() => {
+                dispatch(setSearchTerm(''));
+                dispatch(clearFilters());
+              }}
+            />
+          ) : (
+            appointmentsToShow.map((appointment: Booking) => (
+              <AppointmentCard key={appointment._id} appointment={appointment} />
+            ))
+          )}
         </div>
 
         {/* Reschedule Modal */}
@@ -1490,7 +1614,16 @@ export default function DoctorAppointments() {
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm appearance-none"
                     >
                       <option value="">Select a time</option>
-                      {['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'].map((time) => (
+                      {[
+                        '09:00',
+                        '10:00',
+                        '11:00',
+                        '12:00',
+                        '14:00',
+                        '15:00',
+                        '16:00',
+                        '17:00',
+                      ].map((time) => (
                         <option key={time} value={time}>
                           {formatTime(time)}
                         </option>
@@ -1506,8 +1639,8 @@ export default function DoctorAppointments() {
                     <div className="text-sm text-blue-800">
                       <p className="font-medium mb-1">Rescheduling Information</p>
                       <p className="text-blue-700">
-                        The patient will be notified of the new appointment time.
-                        Previous time slot will be made available for other patients.
+                        The patient will be notified of the new appointment time. Previous
+                        time slot will be made available for other patients.
                       </p>
                     </div>
                   </div>
@@ -1536,7 +1669,9 @@ export default function DoctorAppointments() {
         <div className="mt-8 pt-6 border-t border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Appointment Summary</h4>
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                Appointment Summary
+              </h4>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Total Appointments</span>
@@ -1544,12 +1679,17 @@ export default function DoctorAppointments() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Pending Approval</span>
-                  <span className="font-semibold text-amber-600">{statsWithBreakdown.pending}</span>
+                  <span className="font-semibold text-amber-600">
+                    {statsWithBreakdown.pending}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Completed Today</span>
                   <span className="font-semibold text-emerald-600">
-                    {todaysAppointments.filter((a: Booking) => a.status === 'completed').length}
+                    {
+                      todaysAppointments.filter((a: Booking) => a.status === 'completed')
+                        .length
+                    }
                   </span>
                 </div>
               </div>
@@ -1580,7 +1720,9 @@ export default function DoctorAppointments() {
             </div>
 
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Medical Center Info</h4>
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">
+                Medical Center Info
+              </h4>
               <div className="space-y-2">
                 {medicalCenterSettings && (
                   <>
@@ -1592,11 +1734,15 @@ export default function DoctorAppointments() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Active Doctors</span>
-                      <span className="font-semibold">{medicalCenterSettings.doctors?.length || 0}</span>
+                      <span className="font-semibold">
+                        {medicalCenterSettings.doctors?.length || 0}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Center ID</span>
-                      <span className="font-semibold font-mono">{medicalCenterId?.slice(-8)}</span>
+                      <span className="font-semibold font-mono">
+                        {medicalCenterId?.slice(-8)}
+                      </span>
                     </div>
                   </>
                 )}
@@ -1609,7 +1755,10 @@ export default function DoctorAppointments() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-600">Last Updated</span>
                   <span className="font-semibold">
-                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date().toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">

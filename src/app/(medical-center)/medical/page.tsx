@@ -3,13 +3,10 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '@/app/redux/store';
 import {
-  setLoginData,
   setActiveForm,
   setIsRegistered,
   setError,
   setSuccess,
-  setLocationError,
-  setIsGettingLocation,
   addPractitioner,
   removePractitioner,
   updateFormField,
@@ -19,7 +16,9 @@ import {
   updateLoginField,
   getCurrentLocation,
   registerMedicalCenter,
-  loginUser,forgotPassword ,updateForgotPasswordField
+  loginUser,
+  forgotPassword,
+  updateForgotPasswordField,
 } from '@/app/redux/slices/medicalSlice';
 import type { Practitioner } from '@/app/redux/slices/medicalSlice';
 import { useEffect, useState } from 'react';
@@ -28,7 +27,7 @@ export default function MedicalCenterPortal() {
   const dispatch = useDispatch<AppDispatch>();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
+
   // Get the entire medicalCenter state first to avoid destructuring issues
   const medicalCenterState = useSelector((state: RootState) => state.medicalCenter);
 
@@ -70,13 +69,12 @@ export default function MedicalCenterPortal() {
       license_doc_url: '',
       contact_email: '',
       contact_phone: '',
-      verification_status: 'unverified',
+      verification_status: 'unverified' as const,
     },
     loginData = {
       email: '',
-      password: ''
+      password: '',
     },
-
     forgotPasswordData = { email: '' },
     isGettingLocation = false,
     locationError = '',
@@ -110,8 +108,15 @@ export default function MedicalCenterPortal() {
   ];
 
   const provinces = [
-    'Eastern Cape', 'Free State', 'Gauteng', 'KwaZulu-Natal', 
-    'Limpopo', 'Mpumalanga', 'North West', 'Northern Cape', 'Western Cape'
+    'Eastern Cape',
+    'Free State',
+    'Gauteng',
+    'KwaZulu-Natal',
+    'Limpopo',
+    'Mpumalanga',
+    'North West',
+    'Northern Cape',
+    'Western Cape',
   ];
 
   // Enhanced Handlers with Error Handling
@@ -119,7 +124,7 @@ export default function MedicalCenterPortal() {
     dispatch(getCurrentLocation());
   };
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | boolean | number) => {
     dispatch(updateFormField({ field, value }));
   };
 
@@ -131,7 +136,7 @@ export default function MedicalCenterPortal() {
     dispatch(updateBankField({ field, value }));
   };
 
-  const handleNewPractitionerChange = (field: string, value: any) => {
+  const handleNewPractitionerChange = (field: string, value: string | boolean | number) => {
     dispatch(updatePractitionerField({ field, value }));
   };
 
@@ -154,7 +159,7 @@ export default function MedicalCenterPortal() {
   // Enhanced Login Handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!loginData.email || !loginData.password) {
       dispatch(setError('Please enter both email and password'));
       return;
@@ -162,7 +167,7 @@ export default function MedicalCenterPortal() {
 
     try {
       const result = await dispatch(loginUser(loginData)).unwrap();
-      
+
       if (result.success) {
         dispatch(setSuccess('Login successful! Redirecting...'));
         // Redirect to dashboard or set user session
@@ -170,17 +175,24 @@ export default function MedicalCenterPortal() {
           window.location.href = '/mainPage';
         }, 2000);
       }
-    } catch (error: any) {
-      dispatch(setError(error.message || 'Login failed. Please try again.'));
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Login failed. Please try again.';
+      dispatch(setError(errorMessage));
     }
   };
 
   // Enhanced Registration Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
-    if (!formData.facility_name || !formData.healthcare_reg_number || !formData.official_domain_email || !password) {
+    if (
+      !formData.facility_name ||
+      !formData.healthcare_reg_number ||
+      !formData.official_domain_email ||
+      !password
+    ) {
       dispatch(setError('Please fill in all required fields including password'));
       return;
     }
@@ -201,7 +213,11 @@ export default function MedicalCenterPortal() {
     }
 
     // Bank details validation
-    if (!formData.bankDetails.bank_name || !formData.bankDetails.account_number || !formData.bankDetails.bank_code) {
+    if (
+      !formData.bankDetails.bank_name ||
+      !formData.bankDetails.account_number ||
+      !formData.bankDetails.bank_code
+    ) {
       dispatch(setError('Please fill in all bank details fields'));
       return;
     }
@@ -210,43 +226,46 @@ export default function MedicalCenterPortal() {
       // Prepare data with password and bank details
       const registrationData = {
         ...formData,
-        password: password
+        password: password,
       };
 
       // Submit registration data using Redux thunk
       const result = await dispatch(registerMedicalCenter(registrationData)).unwrap();
-      
+
       if (result.success) {
         dispatch(setSuccess('Registration completed successfully!'));
         dispatch(setIsRegistered(true));
       } else {
         dispatch(setError(result.message || 'Registration failed. Please try again.'));
       }
-    } catch (error: any) {
-      dispatch(setError(error.message || 'Registration failed. Please try again.'));
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Registration failed. Please try again.';
+      dispatch(setError(errorMessage));
     }
   };
 
   const handleForgotPasswordChange = (value: string) => {
-  dispatch(updateForgotPasswordField({ field: 'email', value }));
-};
+    dispatch(updateForgotPasswordField({ field: 'email', value }));
+  };
 
-const handleForgotPassword = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (!forgotPasswordData.email) {
-    dispatch(setError('Please enter your email'));
-    return;
-  }
+    if (!forgotPasswordData.email) {
+      dispatch(setError('Please enter your email'));
+      return;
+    }
 
-  try {
-    const result = await dispatch(forgotPassword(forgotPasswordData)).unwrap();
-    dispatch(setSuccess(result.message || 'Reset link sent to your email'));
-  } catch (err: any) {
-    dispatch(setError(err || 'Failed to send reset email'));
-  }
-};
-
+    try {
+      const result = await dispatch(forgotPassword(forgotPasswordData)).unwrap();
+      dispatch(setSuccess(result.message || 'Reset link sent to your email'));
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to send reset email';
+      dispatch(setError(errorMessage));
+    }
+  };
 
   // Clear errors when switching forms
   useEffect(() => {
@@ -281,15 +300,23 @@ const handleForgotPassword = async (e: React.FormEvent) => {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <div className="w-10 h-10 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-xl flex items-center justify-center mr-3 shadow-lg">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                <svg
+                  className="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
                 </svg>
               </div>
               <h1 className="text-2xl font-bold text-white">DMS</h1>
             </div>
-            <div className="text-sm text-white/80 font-medium">
-              For Medical Centers
-            </div>
+            <div className="text-sm text-white/80 font-medium">For Medical Centers</div>
           </div>
         </div>
       </header>
@@ -299,17 +326,32 @@ const handleForgotPassword = async (e: React.FormEvent) => {
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 backdrop-blur-md border border-red-500/20 rounded-2xl text-red-300 flex items-center justify-between">
             <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               {error}
             </div>
-            <button 
+            <button
               onClick={() => dispatch(setError(''))}
               className="text-red-300 hover:text-white transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -317,54 +359,70 @@ const handleForgotPassword = async (e: React.FormEvent) => {
         {success && (
           <div className="mb-6 p-4 bg-green-500/10 backdrop-blur-md border border-green-500/20 rounded-2xl text-green-300 flex items-center justify-between">
             <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               {success}
             </div>
-            <button 
+            <button
               onClick={() => dispatch(setSuccess(''))}
               className="text-green-300 hover:text-white transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
         )}
-{!isRegistered && activeForm === 'forgot' && (
-  <div className="max-w-md mx-auto bg-white/10 p-8 rounded-3xl border border-white/20 shadow-2xl">
-    <h2 className="text-2xl text-white font-bold mb-4 text-center">Reset Password</h2>
 
-    <form onSubmit={handleForgotPassword} className="space-y-4">
-      <input
-        type="email"
-        value={forgotPasswordData.email}
-        onChange={(e) => handleForgotPasswordChange(e.target.value)}
-        placeholder="Enter your email"
-        className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white"
-        disabled={isLoading}
-        required
-      />
+        {!isRegistered && activeForm === 'forgot' && (
+          <div className="max-w-md mx-auto bg-white/10 p-8 rounded-3xl border border-white/20 shadow-2xl">
+            <h2 className="text-2xl text-white font-bold mb-4 text-center">Reset Password</h2>
 
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-cyan-500 text-white py-3 rounded-xl font-semibold"
-      >
-        {isLoading ? 'Sending...' : 'Send Reset Link'}
-      </button>
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <input
+                type="email"
+                value={forgotPasswordData.email}
+                onChange={(e) => handleForgotPasswordChange(e.target.value)}
+                placeholder="Enter your email"
+                className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white"
+                disabled={isLoading}
+                required
+              />
 
-      <button
-        type="button"
-        onClick={() => dispatch(setActiveForm('login'))}
-        className="w-full text-cyan-400 mt-2"
-      >
-        Back to login
-      </button>
-    </form>
-  </div>
-)}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-cyan-500 text-white py-3 rounded-xl font-semibold"
+              >
+                {isLoading ? 'Sending...' : 'Send Reset Link'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => dispatch(setActiveForm('login'))}
+                className="w-full text-cyan-400 mt-2"
+              >
+                Back to login
+              </button>
+            </form>
+          </div>
+        )}
 
         {!isRegistered && activeForm !== 'forgot' ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -377,7 +435,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
 
               <form onSubmit={handleLogin} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-white/90 mb-2">Email Address</label>
+                  <label className="block text-sm font-medium text-white/90 mb-2">
+                    Email Address
+                  </label>
                   <input
                     type="email"
                     value={loginData.email}
@@ -390,7 +450,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/90 mb-2">Password</label>
+                  <label className="block text-sm font-medium text-white/90 mb-2">
+                    Password
+                  </label>
                   <input
                     type="password"
                     value={loginData.password}
@@ -404,20 +466,20 @@ const handleForgotPassword = async (e: React.FormEvent) => {
 
                 <div className="flex items-center justify-between">
                   <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="w-4 h-4 text-cyan-400 bg-white/5 border-white/20 rounded focus:ring-cyan-400" 
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-cyan-400 bg-white/5 border-white/20 rounded focus:ring-cyan-400"
                       disabled={isLoading}
                     />
                     <span className="ml-2 text-sm text-white/80">Remember me</span>
                   </label>
-                  <a
-  onClick={() => dispatch(setActiveForm('forgot'))}
-  className="text-sm text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer"
->
-  Forgot password?
-</a>
-
+                  <button
+                    type="button"
+                    onClick={() => dispatch(setActiveForm('forgot'))}
+                    className="text-sm text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
 
                 <button
@@ -459,7 +521,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
               <div className="bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-blue-500/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-2xl p-8 text-white hover:bg-white/5 transition-all duration-500">
                 <div className="text-center mb-8">
                   <h2 className="text-3xl font-bold mb-2">Join Our Network</h2>
-                  <p className="text-white/70">Register your medical facility with all required details</p>
+                  <p className="text-white/70">
+                    Register your medical facility with all required details
+                  </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6 max-h-[700px] overflow-y-auto pr-4 custom-scrollbar">
@@ -483,7 +547,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                   {/* Facility Basic Information */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">Facility Name *</label>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Facility Name *
+                      </label>
                       <input
                         type="text"
                         value={formData.facility_name}
@@ -495,15 +561,19 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">Facility Type *</label>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Facility Type *
+                      </label>
                       <select
                         value={formData.facility_type}
                         onChange={(e) => handleInputChange('facility_type', e.target.value)}
                         className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white backdrop-blur-sm"
                         disabled={isLoading}
                       >
-                        {facilityTypes.map(type => (
-                          <option key={type.value} value={type.value}>{type.label}</option>
+                        {facilityTypes.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -512,7 +582,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                   {/* Registration Numbers */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">Company Registration #</label>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Company Registration #
+                      </label>
                       <input
                         type="text"
                         value={formData.company_reg_number}
@@ -523,7 +595,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">Healthcare License # *</label>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Healthcare License # *
+                      </label>
                       <input
                         type="text"
                         value={formData.healthcare_reg_number}
@@ -539,7 +613,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                   {/* Contact Information */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">Official Domain Email *</label>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Official Domain Email *
+                      </label>
                       <input
                         type="email"
                         value={formData.official_domain_email}
@@ -551,7 +627,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">Phone Number *</label>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Phone Number *
+                      </label>
                       <input
                         type="tel"
                         value={formData.phone}
@@ -567,7 +645,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                   {/* Password Fields */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">Password *</label>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Password *
+                      </label>
                       <input
                         type="password"
                         value={password}
@@ -579,7 +659,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-white/90 mb-2">Confirm Password *</label>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Confirm Password *
+                      </label>
                       <input
                         type="password"
                         value={confirmPassword}
@@ -595,7 +677,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                   {/* Address Information */}
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <label className="block text-sm font-medium text-white/90">Facility Address *</label>
+                      <label className="block text-sm font-medium text-white/90">
+                        Facility Address *
+                      </label>
                       <button
                         type="button"
                         onClick={handleGetCurrentLocation}
@@ -609,9 +693,24 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                           </>
                         ) : (
                           <>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
                             </svg>
                             <span>Use Current Location</span>
                           </>
@@ -620,17 +719,21 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                     </div>
 
                     {locationError && (
-                      <div className={`p-3 rounded-lg text-sm backdrop-blur-sm ${
-                        locationError.includes('successfully') 
-                          ? 'bg-green-500/20 text-green-300' 
-                          : 'bg-red-500/20 text-red-300'
-                      }`}>
+                      <div
+                        className={`p-3 rounded-lg text-sm backdrop-blur-sm ${
+                          locationError.includes('successfully')
+                            ? 'bg-green-500/20 text-green-300'
+                            : 'bg-red-500/20 text-red-300'
+                        }`}
+                      >
                         {locationError}
                       </div>
                     )}
 
                     <div>
-                      <label className="block text-xs font-medium text-white/80 mb-1">Street Address</label>
+                      <label className="block text-xs font-medium text-white/80 mb-1">
+                        Street Address
+                      </label>
                       <input
                         type="text"
                         value={formData.address.line1}
@@ -644,7 +747,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">City</label>
+                        <label className="block text-xs font-medium text-white/80 mb-1">
+                          City
+                        </label>
                         <input
                           type="text"
                           value={formData.address.city}
@@ -656,7 +761,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">Province</label>
+                        <label className="block text-xs font-medium text-white/80 mb-1">
+                          Province
+                        </label>
                         <select
                           value={formData.address.province}
                           onChange={(e) => handleAddressChange('province', e.target.value)}
@@ -665,13 +772,17 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                           disabled={isLoading}
                         >
                           <option value="">Select Province</option>
-                          {provinces.map(province => (
-                            <option key={province} value={province}>{province}</option>
+                          {provinces.map((province) => (
+                            <option key={province} value={province}>
+                              {province}
+                            </option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">Postal Code</label>
+                        <label className="block text-xs font-medium text-white/80 mb-1">
+                          Postal Code
+                        </label>
                         <input
                           type="text"
                           value={formData.address.postal}
@@ -688,10 +799,12 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                   {/* Bank Details Section */}
                   <div className="space-y-4">
                     <h4 className="text-sm font-medium text-white/90 mb-2">Bank Details</h4>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">Bank Name *</label>
+                        <label className="block text-xs font-medium text-white/80 mb-1">
+                          Bank Name *
+                        </label>
                         <input
                           type="text"
                           value={formData.bankDetails.bank_name}
@@ -703,7 +816,9 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">Account Number *</label>
+                        <label className="block text-xs font-medium text-white/80 mb-1">
+                          Account Number *
+                        </label>
                         <input
                           type="text"
                           value={formData.bankDetails.account_number}
@@ -718,19 +833,23 @@ const handleForgotPassword = async (e: React.FormEvent) => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">Branch Code *</label>
+                        <label className="block text-xs font-medium text-white/80 mb-1">
+                          Branch Code *
+                        </label>
                         <input
                           type="text"
                           value={formData.bankDetails.bank_code}
                           onChange={(e) => handleBankChange('bank_code', e.target.value)}
                           className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 backdrop-blur-sm"
-                          placeholder="Enter bank_code"
+                          placeholder="Enter bank code"
                           required
                           disabled={isLoading}
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">Account Type *</label>
+                        <label className="block text-xs font-medium text-white/80 mb-1">
+                          Account Type *
+                        </label>
                         <select
                           value={formData.bankDetails.account_type}
                           onChange={(e) => handleBankChange('account_type', e.target.value)}
@@ -739,8 +858,10 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                           disabled={isLoading}
                         >
                           <option value="">Select Account Type</option>
-                          {accountTypes.map(type => (
-                            <option key={type.value} value={type.value}>{type.label}</option>
+                          {accountTypes.map((type) => (
+                            <option key={type.value} value={type.value}>
+                              {type.label}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -749,34 +870,46 @@ const handleForgotPassword = async (e: React.FormEvent) => {
 
                   {/* Practitioners Section */}
                   <div>
-                    <label className="block text-sm font-medium text-white/90 mb-2">Responsible Practitioners *</label>
-                    
+                    <label className="block text-sm font-medium text-white/90 mb-2">
+                      Responsible Practitioners *
+                    </label>
+
                     {/* Add Practitioner Form */}
                     <div className="bg-white/10 rounded-xl p-4 mb-4 space-y-4 backdrop-blur-sm">
                       <h4 className="text-sm font-medium text-white/90">Add New Practitioner</h4>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">Full Name *</label>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Full Name *
+                          </label>
                           <input
                             type="text"
                             value={newPractitioner.full_name}
-                            onChange={(e) => handleNewPractitionerChange('full_name', e.target.value)}
+                            onChange={(e) =>
+                              handleNewPractitionerChange('full_name', e.target.value)
+                            }
                             className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 text-sm backdrop-blur-sm"
                             placeholder="Full name"
                             disabled={isLoading}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">Role *</label>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Role *
+                          </label>
                           <select
                             value={newPractitioner.role}
-                            onChange={(e) => handleNewPractitionerChange('role', e.target.value)}
+                            onChange={(e) =>
+                              handleNewPractitionerChange('role', e.target.value)
+                            }
                             className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white text-sm backdrop-blur-sm"
                             disabled={isLoading}
                           >
-                            {practitionerRoles.map(role => (
-                              <option key={role.value} value={role.value}>{role.label}</option>
+                            {practitionerRoles.map((role) => (
+                              <option key={role.value} value={role.value}>
+                                {role.label}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -784,26 +917,36 @@ const handleForgotPassword = async (e: React.FormEvent) => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">Professional License #</label>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Professional License #
+                          </label>
                           <input
                             type="text"
                             value={newPractitioner.professional_license_number}
-                            onChange={(e) => handleNewPractitionerChange('professional_license_number', e.target.value)}
+                            onChange={(e) =>
+                              handleNewPractitionerChange('professional_license_number', e.target.value)
+                            }
                             className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 text-sm backdrop-blur-sm"
                             placeholder="License number"
                             disabled={isLoading}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">License Type</label>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            License Type
+                          </label>
                           <select
                             value={newPractitioner.license_type}
-                            onChange={(e) => handleNewPractitionerChange('license_type', e.target.value)}
+                            onChange={(e) =>
+                              handleNewPractitionerChange('license_type', e.target.value)
+                            }
                             className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white text-sm backdrop-blur-sm"
                             disabled={isLoading}
                           >
-                            {licenseTypes.map(type => (
-                              <option key={type.value} value={type.value}>{type.label}</option>
+                            {licenseTypes.map((type) => (
+                              <option key={type.value} value={type.value}>
+                                {type.label}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -811,22 +954,30 @@ const handleForgotPassword = async (e: React.FormEvent) => {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">Contact Email *</label>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Contact Email *
+                          </label>
                           <input
                             type="email"
                             value={newPractitioner.contact_email}
-                            onChange={(e) => handleNewPractitionerChange('contact_email', e.target.value)}
+                            onChange={(e) =>
+                              handleNewPractitionerChange('contact_email', e.target.value)
+                            }
                             className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 text-sm backdrop-blur-sm"
                             placeholder="practitioner@email.com"
                             disabled={isLoading}
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">Contact Phone</label>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Contact Phone
+                          </label>
                           <input
                             type="tel"
                             value={newPractitioner.contact_phone}
-                            onChange={(e) => handleNewPractitionerChange('contact_phone', e.target.value)}
+                            onChange={(e) =>
+                              handleNewPractitionerChange('contact_phone', e.target.value)
+                            }
                             className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 text-sm backdrop-blur-sm"
                             placeholder="Phone number"
                             disabled={isLoading}
@@ -847,30 +998,46 @@ const handleForgotPassword = async (e: React.FormEvent) => {
                     {/* Practitioners List */}
                     {formData.practitioners.length > 0 && (
                       <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-white/90">Added Practitioners ({formData.practitioners.length})</h4>
+                        <h4 className="text-sm font-medium text-white/90">
+                          Added Practitioners ({formData.practitioners.length})
+                        </h4>
                         {formData.practitioners.map((practitioner: Practitioner) => (
-                          <div key={practitioner.practitioner_id} className="bg-white/10 rounded-lg p-3 backdrop-blur-sm">
+                          <div
+                            key={practitioner.practitioner_id}
+                            className="bg-white/10 rounded-lg p-3 backdrop-blur-sm"
+                          >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
                                 <div className="flex items-center space-x-2 mb-1">
-                                  <span className="text-sm font-medium text-white/90">{practitioner.full_name}</span>
-                                  <span className="text-xs bg-white/20 px-2 py-1 rounded-full text-white/90">
-                                    {practitionerRoles.find(r => r.value === practitioner.role)?.label}
+                                  <span className="text-sm font-medium text-white/90">
+                                    {practitioner.full_name}
                                   </span>
-                                  <span className={`text-xs px-2 py-1 rounded-full ${
-                                    practitioner.verification_status === 'verified' ? 'bg-green-500/20 text-green-300' :
-                                    practitioner.verification_status === 'rejected' ? 'bg-red-500/20 text-red-300' :
-                                    'bg-yellow-500/20 text-yellow-300'
-                                  }`}>
+                                  <span className="text-xs bg-white/20 px-2 py-1 rounded-full text-white/90">
+                                    {practitionerRoles.find((r) => r.value === practitioner.role)?.label}
+                                  </span>
+                                  <span
+                                    className={`text-xs px-2 py-1 rounded-full ${
+                                      practitioner.verification_status === 'verified'
+                                        ? 'bg-green-500/20 text-green-300'
+                                        : practitioner.verification_status === 'rejected'
+                                        ? 'bg-red-500/20 text-red-300'
+                                        : 'bg-yellow-500/20 text-yellow-300'
+                                    }`}
+                                  >
                                     {practitioner.verification_status}
                                   </span>
                                 </div>
                                 <div className="text-xs text-white/70 space-y-1">
                                   {practitioner.professional_license_number && (
-                                    <div>License: {practitioner.professional_license_number} ({practitioner.license_type})</div>
+                                    <div>
+                                      License: {practitioner.professional_license_number} (
+                                      {practitioner.license_type})
+                                    </div>
                                   )}
                                   <div>Email: {practitioner.contact_email}</div>
-                                  {practitioner.contact_phone && <div>Phone: {practitioner.contact_phone}</div>}
+                                  {practitioner.contact_phone && (
+                                    <div>Phone: {practitioner.contact_phone}</div>
+                                  )}
                                 </div>
                               </div>
                               <button
@@ -911,45 +1078,66 @@ const handleForgotPassword = async (e: React.FormEvent) => {
           <div className="max-w-2xl mx-auto">
             <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-2xl p-12 text-center hover:bg-white/15 transition-all duration-500">
               <div className="w-20 h-20 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-10 h-10 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
-              
+
               <h2 className="text-3xl font-bold text-white mb-4">Registration Submitted!</h2>
               <p className="text-white/70 text-lg mb-8">
-                Thank you for registering <strong className="text-white">{formData.facility_name}</strong> with our platform. 
+                Thank you for registering{' '}
+                <strong className="text-white">{formData.facility_name}</strong> with our platform.
                 Our team will review your information and contact you within 24-48 hours.
               </p>
-              
+
               <div className="bg-white/10 rounded-2xl p-6 mb-8 backdrop-blur-sm">
                 <h3 className="font-semibold text-white mb-3">What happens next?</h3>
                 <div className="space-y-3 text-sm text-white/70">
                   <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">1</div>
+                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
+                      1
+                    </div>
                     <span>Verification of facility credentials and documents</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">2</div>
+                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
+                      2
+                    </div>
                     <span>Practitioner license verification</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">3</div>
+                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
+                      3
+                    </div>
                     <span>Bank details verification</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">4</div>
+                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
+                      4
+                    </div>
                     <span>Onboarding call with our team</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">5</div>
+                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
+                      5
+                    </div>
                     <span>Access to your professional dashboard</span>
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex space-x-4 justify-center">
-                <button 
+                <button
                   onClick={() => {
                     dispatch(setIsRegistered(false));
                     dispatch(setActiveForm('login'));

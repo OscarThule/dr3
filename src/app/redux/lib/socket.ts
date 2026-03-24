@@ -28,19 +28,22 @@ class SocketService {
     }
   }
 
-  emitEvent(event: string, data: any): void {
+  // Emit an event with typed data
+  emitEvent<T>(event: string, data: T): void {
     if (this.socket) {
       this.socket.emit(event, data)
     }
   }
 
-  onEvent(event: string, callback: (data: any) => void): void {
+  // Listen for an event with typed data
+  onEvent<T>(event: string, callback: (data: T) => void): void {
     if (this.socket) {
       this.socket.on(event, callback)
     }
   }
 
-  offEvent(event: string, callback?: (data: any) => void): void {
+  // Remove a listener (if callback provided, removes that specific one; otherwise removes all for the event)
+  offEvent<T>(event: string, callback?: (data: T) => void): void {
     if (this.socket) {
       this.socket.off(event, callback)
     }

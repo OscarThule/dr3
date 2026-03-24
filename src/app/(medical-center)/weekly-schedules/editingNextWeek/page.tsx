@@ -8,7 +8,7 @@ import { AppDispatch, RootState } from '@/app/redux/store'
 import { fetchPractitioners } from '@/app/redux/slices/medicalStaffSlice'
 import {
   getRollingWindow,
-  updateDailySchedule,
+  
   assignDoctorToSlot,
   removeDoctorFromSlot,
   updateSlotDuration,
@@ -761,12 +761,18 @@ export default function EditingNextWeek() {
       // Refresh schedule
       dispatch(getRollingWindow())
       
-    } catch (error: any) {
-      console.error("Save error:", error)
-      dispatch(setError(error.message || 'Failed to save schedule'))
-    } finally {
-      dispatch(setLoading(false))
-    }
+    } catch (error: unknown) {
+  console.error('Save error:', error)
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : 'Failed to save schedule'
+
+  dispatch(setError(message))
+} finally {
+  dispatch(setLoading(false))
+}
   }, [rollingSchedule, dispatch])
 
   // Assign doctor to slot
@@ -1254,9 +1260,14 @@ export default function EditingNextWeek() {
       await dispatch(rollWindow()).unwrap()
       dispatch(setSuccess('Window rolled forward successfully'))
       dispatch(getRollingWindow())
-    } catch (error: any) {
-      dispatch(setError(error.message || 'Failed to roll window'))
-    }
+    } catch (error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : 'Failed to roll window'
+
+  dispatch(setError(message))
+}
   }, [dispatch])
 
   // Handle copy button click
@@ -1859,7 +1870,7 @@ export default function EditingNextWeek() {
                           <Icons.Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                           <h4 className="text-lg font-medium text-gray-900 mb-2">No Time Slots Created</h4>
                           <p className="text-gray-600 mb-4">
-                            Configure working hours above or click "Generate Time Slots" to create slots.
+                            Configure working hours above or click Generate Time Slots to create slots.
                           </p>
                           {!isReadOnly && (
                             <button

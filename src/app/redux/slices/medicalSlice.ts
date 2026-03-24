@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 // Types
 export type FacilityType = 'surgery' | 'clinic' | 'hospital' | 'community_health' | 'mobile_unit' | 'other';
@@ -43,7 +43,7 @@ export interface FacilityFormData {
   phone: string;
   address: Address;
   practitioners: Practitioner[];
-  bankDetails: BankDetails; // Added bank details
+  bankDetails: BankDetails;
   password: string;
 }
 
@@ -59,7 +59,6 @@ export interface ResetPasswordData {
   password: string;
 }
 
-
 export interface MedicalCenterState {
   isRegistered: boolean;
   isLoading: boolean;
@@ -72,13 +71,26 @@ export interface MedicalCenterState {
   loginData: LoginFormData;
   isGettingLocation: boolean;
   locationError: string;
-    forgotPasswordData: ForgotPasswordData;
+  forgotPasswordData: ForgotPasswordData;
   resetPasswordData: ResetPasswordData;
-
 }
 
 // Base URL for API
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dmrs.onrender.com';
+
+// Helper to extract error message from unknown error
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    return error.response?.data?.message || error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'An unknown error occurred';
+};
 
 // Initial state
 const initialState: MedicalCenterState = {
@@ -122,18 +134,16 @@ const initialState: MedicalCenterState = {
     contact_phone: '',
     verification_status: 'unverified',
   },
-  
   loginData: {
     email: '',
-    password: ''
+    password: '',
   },
-    forgotPasswordData: {
-    email: ''
+  forgotPasswordData: {
+    email: '',
   },
   resetPasswordData: {
-    password: ''
+    password: '',
   },
-
   isGettingLocation: false,
   locationError: '',
 };
@@ -183,7 +193,7 @@ export const getCurrentLocation = createAsyncThunk(
         {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 60000
+          maximumAge: 60000,
         }
       );
     });
@@ -194,7 +204,6 @@ export const registerMedicalCenter = createAsyncThunk(
   'medicalCenter/registerMedicalCenter',
   async (formData: FacilityFormData, { rejectWithValue }) => {
     try {
-      // Prepare data according to backend expectations including bank details
       const registrationData = {
         facility_name: formData.facility_name,
         company_reg_number: formData.company_reg_number,
@@ -204,24 +213,21 @@ export const registerMedicalCenter = createAsyncThunk(
         phone: formData.phone,
         password: formData.password,
         address: formData.address,
-        bankDetails: formData.bankDetails, // Include bank details
-        practitioners: formData.practitioners.map(practitioner => ({
+        bankDetails: formData.bankDetails,
+        practitioners: formData.practitioners.map((practitioner) => ({
           full_name: practitioner.full_name,
           role: practitioner.role,
           professional_license_number: practitioner.professional_license_number,
           license_type: practitioner.license_type,
           contact_email: practitioner.contact_email,
           contact_phone: practitioner.contact_phone,
-        }))
+        })),
       };
 
       const response = await api.post('/api/medical-centers/register', registrationData);
       return response.data;
-    } catch (error: any) {
-      if (error.response?.data?.message) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message || 'Registration failed. Please try again.');
+    } catch (error: unknown) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
@@ -232,36 +238,30 @@ export const loginUser = createAsyncThunk(
     try {
       const response = await api.post('/api/medical-centers/login', {
         email: loginData.email,
-        password: loginData.password
+        password: loginData.password,
       });
-      
+
       if (response.data.token) {
         localStorage.setItem('authToken', response.data.token);
-        
-        // Set default authorization header for future requests
         api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
-
-        // Store medical_center_id
         localStorage.setItem('medicalCenterId', response.data.data.medical_center_id);
       }
-      
+
       return response.data;
-    } catch (error: any) {
-      if (error.response?.data?.message) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message || 'Login failed. Please check your credentials.');
+    } catch (error: unknown) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
+
 export const forgotPassword = createAsyncThunk(
   'medicalCenter/forgotPassword',
   async (data: ForgotPasswordData, { rejectWithValue }) => {
     try {
       const res = await api.post('/api/medical-centers/forgot-password', data);
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to send reset email');
+    } catch (error: unknown) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
@@ -272,12 +272,11 @@ export const resetPassword = createAsyncThunk(
     try {
       const res = await api.post(`/api/medical-centers/reset-password/${token}`, { password });
       return res.data;
-    } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Password reset failed');
+    } catch (error: unknown) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
-
 
 // Slice
 const medicalCenterSlice = createSlice({
@@ -311,48 +310,47 @@ const medicalCenterSlice = createSlice({
     setIsGettingLocation: (state, action: PayloadAction<boolean>) => {
       state.isGettingLocation = action.payload;
     },
-    updateFormField: (state, action: PayloadAction<{ field: string; value: any }>) => {
+    // Generic field update for formData (uses Record<string, unknown> to avoid any)
+    updateFormField: (state, action: PayloadAction<{ field: string; value: unknown }>) => {
       const { field, value } = action.payload;
-      (state.formData as any)[field] = value;
+      (state.formData as Record<string, unknown>)[field] = value;
     },
-    updateAddressField: (state, action: PayloadAction<{ field: string; value: string }>) => {
+    updateAddressField: (state, action: PayloadAction<{ field: string; value: unknown }>) => {
       const { field, value } = action.payload;
-      (state.formData.address as any)[field] = value;
+      (state.formData.address as Record<string, unknown>)[field] = value;
     },
-    updateBankField: (state, action: PayloadAction<{ field: string; value: string }>) => {
+    updateBankField: (state, action: PayloadAction<{ field: string; value: unknown }>) => {
       const { field, value } = action.payload;
       if (state.formData?.bankDetails) {
-        (state.formData.bankDetails as any)[field] = value;
+        (state.formData.bankDetails as Record<string, unknown>)[field] = value;
       }
     },
-    updatePractitionerField: (state, action: PayloadAction<{ field: string; value: any }>) => {
+    updatePractitionerField: (state, action: PayloadAction<{ field: string; value: unknown }>) => {
       const { field, value } = action.payload;
-      (state.newPractitioner as any)[field] = value;
+      (state.newPractitioner as Record<string, unknown>)[field] = value;
     },
-    updateLoginField: (state, action: PayloadAction<{ field: string; value: string }>) => {
+    updateLoginField: (state, action: PayloadAction<{ field: string; value: unknown }>) => {
       const { field, value } = action.payload;
-      (state.loginData as any)[field] = value;
+      (state.loginData as Record<string, unknown>)[field] = value;
     },
-        setForgotPasswordData: (state, action: PayloadAction<ForgotPasswordData>) => {
+    setForgotPasswordData: (state, action: PayloadAction<ForgotPasswordData>) => {
       state.forgotPasswordData = action.payload;
     },
     setResetPasswordData: (state, action: PayloadAction<ResetPasswordData>) => {
       state.resetPasswordData = action.payload;
     },
-    updateForgotPasswordField: (state, action: PayloadAction<{ field: string; value: string }>) => {
-      (state.forgotPasswordData as any)[action.payload.field] = action.payload.value;
+    updateForgotPasswordField: (state, action: PayloadAction<{ field: string; value: unknown }>) => {
+      (state.forgotPasswordData as Record<string, unknown>)[action.payload.field] = action.payload.value;
     },
-    updateResetPasswordField: (state, action: PayloadAction<{ field: string; value: string }>) => {
-      (state.resetPasswordData as any)[action.payload.field] = action.payload.value;
+    updateResetPasswordField: (state, action: PayloadAction<{ field: string; value: unknown }>) => {
+      (state.resetPasswordData as Record<string, unknown>)[action.payload.field] = action.payload.value;
     },
-
     addPractitioner: (state) => {
       if (state.newPractitioner.full_name && state.newPractitioner.contact_email) {
         const practitioner: Practitioner = {
           ...state.newPractitioner,
-          practitioner_id: `prac_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          practitioner_id: `prac_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         };
-        
         state.formData.practitioners.push(practitioner);
 
         // Reset new practitioner form
@@ -370,7 +368,7 @@ const medicalCenterSlice = createSlice({
     },
     removePractitioner: (state, action: PayloadAction<string>) => {
       state.formData.practitioners = state.formData.practitioners.filter(
-        p => p.practitioner_id !== action.payload
+        (p) => p.practitioner_id !== action.payload
       );
     },
     clearError: (state) => {
@@ -386,7 +384,7 @@ const medicalCenterSlice = createSlice({
     resetForm: (state) => {
       state.formData = initialState.formData;
       state.newPractitioner = initialState.newPractitioner;
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -439,6 +437,7 @@ const medicalCenterSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
       })
+      // forgotPassword
       .addCase(forgotPassword.pending, (state) => {
         state.isLoading = true;
         state.error = '';
@@ -452,7 +451,6 @@ const medicalCenterSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
       })
-
       // resetPassword
       .addCase(resetPassword.pending, (state) => {
         state.isLoading = true;
@@ -466,9 +464,7 @@ const medicalCenterSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
-      })
-
-      
+      });
   },
 });
 
@@ -493,11 +489,10 @@ export const {
   clearSuccess,
   clearNotifications,
   resetForm,
-    setForgotPasswordData,
+  setForgotPasswordData,
   setResetPasswordData,
   updateForgotPasswordField,
   updateResetPasswordField,
-
 } = medicalCenterSlice.actions;
 
 export default medicalCenterSlice.reducer;

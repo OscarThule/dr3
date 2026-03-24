@@ -2,31 +2,98 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 import {
-  Session,
   LunchBreak,
-  DayHours,
   DefaultHours,
   DefaultOperationalHours,
   DayOfWeek,
-  SessionType,
   UpdateDefaultHoursPayload,
-  UpdateLunchBreakPayload
+  UpdateLunchBreakPayload,
 } from '@/app/(medical-center)/weekly-schedules/types';
 
 // =========================
-//    INTERFACE EXTENSIONS
+//    LOCAL TYPES
 // =========================
 
+type SelectedWeekType = 'next' | 'weekAfterNext' | 'thirdWeek';
+
+interface SelectedWeek {
+  type: SelectedWeekType;
+}
+
+interface SessionState {
+  start: string;
+  end: string;
+  enabled: boolean;
+}
+
+interface ScheduleDay {
+  morning: SessionState;
+  afternoon: SessionState;
+  night: SessionState;
+  lunches: LunchBreak[];
+  nightLunches: LunchBreak[];
+}
+
+type WeeklyScheduleDays = Partial<Record<DayOfWeek, ScheduleDay>>;
+
+interface WeeklySchedule {
+  _id?: string;
+  medicalCenterId?: string;
+  weekType?: SelectedWeekType;
+  weekStartDate?: string;
+  weekEndDate?: string;
+  defaultHours: DefaultHours;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface WeeklyScheduleState {
-  schedules: any[];
-  currentSchedule: any | null;
+  schedules: WeeklySchedule[];
+  currentSchedule: WeeklySchedule | null;
   defaultHours: DefaultHours;
   defaultOperationalHours: DefaultOperationalHours | null;
   loading: boolean;
   error: string | null;
   success: string | null;
-  selectedWeek: { type: 'next' | 'weekAfterNext' | 'thirdWeek' } | null;
+  selectedWeek: SelectedWeek | null;
 }
+
+interface DefaultOperationalHoursRequest {
+  defaultHours: DefaultHours;
+  slotDuration?: number;
+  bufferTime?: number;
+}
+
+interface ApiErrorResponse {
+  message?: string;
+}
+
+type RejectValue = string;
+
+// =========================
+//    HELPERS
+// =========================
+
+const createEmptyDayHours = (): ScheduleDay => ({
+  morning: { start: '', end: '', enabled: false },
+  afternoon: { start: '', end: '', enabled: false },
+  night: { start: '', end: '', enabled: false },
+  lunches: [],
+  nightLunches: [],
+});
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as ApiErrorResponse | undefined;
+    return data?.message || error.message || fallback;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return fallback;
+};
 
 // =========================
 //    INITIAL STATE
@@ -52,7 +119,6 @@ const api = axios.create({
   timeout: 10000,
 });
 
-// Automatically attach token to weekly schedule requests
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('authToken');
@@ -67,62 +133,59 @@ api.interceptors.request.use((config) => {
 //    ASYNC THUNKS
 // =========================
 
-// GET default operational hours
-export const getDefaultOperationalHours = createAsyncThunk(
+export const getDefaultOperationalHours = createAsyncThunk<
+  DefaultOperationalHours,
+  void,
+  { rejectValue: RejectValue }
+>(
   'weeklySchedule/getDefaultOperationalHours',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/default-operational-hours');
-      return response.data as DefaultOperationalHours;
+      const response = await api.get<DefaultOperationalHours>('/default-operational-hours');
+      return response.data;
     } catch (error: unknown) {
-      let errorMessage = 'Failed to fetch default operational hours';
-      if (axios.isAxiosError(error)) {
-        errorMessage = error.response?.data?.message || error.message || errorMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      return rejectWithValue(errorMessage);
+      return rejectWithValue(
+        getErrorMessage(error, 'Failed to fetch default operational hours')
+      );
     }
   }
 );
 
-// UPDATE default operational hours
-export const updateDefaultOperationalHours = createAsyncThunk(
+export const updateDefaultOperationalHours = createAsyncThunk<
+  DefaultOperationalHours,
+  DefaultOperationalHoursRequest,
+  { rejectValue: RejectValue }
+>(
   'weeklySchedule/updateDefaultOperationalHours',
-  async (
-    defaultHoursData: { defaultHours: DefaultHours; slotDuration?: number; bufferTime?: number },
-    { rejectWithValue }
-  ) => {
+  async (defaultHoursData, { rejectWithValue }) => {
     try {
-      const response = await api.put('/default-operational-hours', defaultHoursData);
-      return response.data as DefaultOperationalHours;
+      const response = await api.put<DefaultOperationalHours>(
+        '/default-operational-hours',
+        defaultHoursData
+      );
+      return response.data;
     } catch (error: unknown) {
-      let errorMessage = 'Failed to update default operational hours';
-      if (axios.isAxiosError(error)) {
-        errorMessage = error.response?.data?.message || error.message || errorMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      return rejectWithValue(errorMessage);
+      return rejectWithValue(
+        getErrorMessage(error, 'Failed to update default operational hours')
+      );
     }
   }
 );
 
-// RESET default operational hours
-export const resetDefaultOperationalHours = createAsyncThunk(
+export const resetDefaultOperationalHours = createAsyncThunk<
+  DefaultOperationalHours,
+  void,
+  { rejectValue: RejectValue }
+>(
   'weeklySchedule/resetDefaultOperationalHours',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.post('/default-operational-hours/reset');
-      return response.data as DefaultOperationalHours;
+      const response = await api.post<DefaultOperationalHours>('/default-operational-hours/reset');
+      return response.data;
     } catch (error: unknown) {
-      let errorMessage = 'Failed to reset default operational hours';
-      if (axios.isAxiosError(error)) {
-        errorMessage = error.response?.data?.message || error.message || errorMessage;
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      return rejectWithValue(errorMessage);
+      return rejectWithValue(
+        getErrorMessage(error, 'Failed to reset default operational hours')
+      );
     }
   }
 );
@@ -135,7 +198,7 @@ const weeklyScheduleSlice = createSlice({
   name: 'weeklySchedule',
   initialState,
   reducers: {
-    setSelectedWeek: (state, action: PayloadAction<{ type: 'next' | 'weekAfterNext' | 'thirdWeek' } | null>) => {
+    setSelectedWeek: (state, action: PayloadAction<SelectedWeek | null>) => {
       state.selectedWeek = action.payload;
     },
 
@@ -146,25 +209,15 @@ const weeklyScheduleSlice = createSlice({
     updateDefaultHours: (state, action: PayloadAction<UpdateDefaultHoursPayload>) => {
       const { day, session, field, value } = action.payload;
 
-      // Initialize day if it doesn't exist
       if (!state.defaultHours[day]) {
-        state.defaultHours[day] = {
-          morning: { start: '', end: '', enabled: false },
-          afternoon: { start: '', end: '', enabled: false },
-          night: { start: '', end: '', enabled: false },
-          lunches: [],
-          nightLunches: [],
-        };
+        state.defaultHours[day] = createEmptyDayHours();
       }
 
-      // Type-safe update using a type guard
       const sessionObj = state.defaultHours[day][session];
-      
+
       if (field === 'start' || field === 'end') {
-        // For string fields
         sessionObj[field] = value as string;
       } else if (field === 'enabled') {
-        // For boolean field
         sessionObj[field] = value as boolean;
       }
     },
@@ -172,15 +225,8 @@ const weeklyScheduleSlice = createSlice({
     addLunchBreak: (state, action: PayloadAction<{ day: DayOfWeek; isNight: boolean }>) => {
       const { day, isNight } = action.payload;
 
-      // Initialize day if it doesn't exist
       if (!state.defaultHours[day]) {
-        state.defaultHours[day] = {
-          morning: { start: '', end: '', enabled: false },
-          afternoon: { start: '', end: '', enabled: false },
-          night: { start: '', end: '', enabled: false },
-          lunches: [],
-          nightLunches: [],
-        };
+        state.defaultHours[day] = createEmptyDayHours();
       }
 
       const newLunch: LunchBreak = {
@@ -205,8 +251,12 @@ const weeklyScheduleSlice = createSlice({
       const { day, lunchId, updates, isNight } = action.payload;
 
       if (state.defaultHours[day]) {
-        const lunchArray = isNight ? state.defaultHours[day].nightLunches : state.defaultHours[day].lunches;
-        const index = lunchArray.findIndex(lunch => lunch.id === lunchId);
+        const lunchArray = isNight
+          ? state.defaultHours[day].nightLunches
+          : state.defaultHours[day].lunches;
+
+        const index = lunchArray.findIndex((lunch) => lunch.id === lunchId);
+
         if (index !== -1) {
           lunchArray[index] = {
             ...lunchArray[index],
@@ -216,17 +266,20 @@ const weeklyScheduleSlice = createSlice({
       }
     },
 
-    removeLunchBreak: (state, action: PayloadAction<{ day: DayOfWeek; lunchId: string; isNight: boolean }>) => {
+    removeLunchBreak: (
+      state,
+      action: PayloadAction<{ day: DayOfWeek; lunchId: string; isNight: boolean }>
+    ) => {
       const { day, lunchId, isNight } = action.payload;
 
       if (state.defaultHours[day]) {
         if (isNight) {
           state.defaultHours[day].nightLunches = state.defaultHours[day].nightLunches.filter(
-            lunch => lunch.id !== lunchId
+            (lunch) => lunch.id !== lunchId
           );
         } else {
           state.defaultHours[day].lunches = state.defaultHours[day].lunches.filter(
-            lunch => lunch.id !== lunchId
+            (lunch) => lunch.id !== lunchId
           );
         }
       }
@@ -242,108 +295,120 @@ const weeklyScheduleSlice = createSlice({
 
     initializeWithTemplate: (state) => {
       const templateDefaultHours: DefaultHours = {
-        monday: { 
-          morning: { start: '08:00', end: '12:00', enabled: true }, 
-          afternoon: { start: '13:00', end: '17:00', enabled: true }, 
-          night: { start: '18:00', end: '22:00', enabled: false }, 
-          lunches: [{ 
-            id: 'lunch-1', 
-            start: '12:00', 
-            end: '13:00', 
-            reason: 'Lunch Break', 
-            duration: 60, 
-            enabled: true, 
-            recurring: true, 
-            affectedStaff: [] 
-          }], 
-          nightLunches: [] 
+        monday: {
+          morning: { start: '08:00', end: '12:00', enabled: true },
+          afternoon: { start: '13:00', end: '17:00', enabled: true },
+          night: { start: '18:00', end: '22:00', enabled: false },
+          lunches: [
+            {
+              id: 'lunch-1',
+              start: '12:00',
+              end: '13:00',
+              reason: 'Lunch Break',
+              duration: 60,
+              enabled: true,
+              recurring: true,
+              affectedStaff: [],
+            },
+          ],
+          nightLunches: [],
         },
-        tuesday: { 
-          morning: { start: '08:00', end: '12:00', enabled: true }, 
-          afternoon: { start: '13:00', end: '17:00', enabled: true }, 
-          night: { start: '18:00', end: '22:00', enabled: false }, 
-          lunches: [{ 
-            id: 'lunch-1', 
-            start: '12:00', 
-            end: '13:00', 
-            reason: 'Lunch Break', 
-            duration: 60, 
-            enabled: true, 
-            recurring: true, 
-            affectedStaff: [] 
-          }], 
-          nightLunches: [] 
+        tuesday: {
+          morning: { start: '08:00', end: '12:00', enabled: true },
+          afternoon: { start: '13:00', end: '17:00', enabled: true },
+          night: { start: '18:00', end: '22:00', enabled: false },
+          lunches: [
+            {
+              id: 'lunch-1',
+              start: '12:00',
+              end: '13:00',
+              reason: 'Lunch Break',
+              duration: 60,
+              enabled: true,
+              recurring: true,
+              affectedStaff: [],
+            },
+          ],
+          nightLunches: [],
         },
-        wednesday: { 
-          morning: { start: '08:00', end: '12:00', enabled: true }, 
-          afternoon: { start: '13:00', end: '17:00', enabled: true }, 
-          night: { start: '18:00', end: '22:00', enabled: false }, 
-          lunches: [{ 
-            id: 'lunch-1', 
-            start: '12:00', 
-            end: '13:00', 
-            reason: 'Lunch Break', 
-            duration: 60, 
-            enabled: true, 
-            recurring: true, 
-            affectedStaff: [] 
-          }], 
-          nightLunches: [] 
+        wednesday: {
+          morning: { start: '08:00', end: '12:00', enabled: true },
+          afternoon: { start: '13:00', end: '17:00', enabled: true },
+          night: { start: '18:00', end: '22:00', enabled: false },
+          lunches: [
+            {
+              id: 'lunch-1',
+              start: '12:00',
+              end: '13:00',
+              reason: 'Lunch Break',
+              duration: 60,
+              enabled: true,
+              recurring: true,
+              affectedStaff: [],
+            },
+          ],
+          nightLunches: [],
         },
-        thursday: { 
-          morning: { start: '08:00', end: '12:00', enabled: true }, 
-          afternoon: { start: '13:00', end: '17:00', enabled: true }, 
-          night: { start: '18:00', end: '22:00', enabled: false }, 
-          lunches: [{ 
-            id: 'lunch-1', 
-            start: '12:00', 
-            end: '13:00', 
-            reason: 'Lunch Break', 
-            duration: 60, 
-            enabled: true, 
-            recurring: true, 
-            affectedStaff: [] 
-          }], 
-          nightLunches: [] 
+        thursday: {
+          morning: { start: '08:00', end: '12:00', enabled: true },
+          afternoon: { start: '13:00', end: '17:00', enabled: true },
+          night: { start: '18:00', end: '22:00', enabled: false },
+          lunches: [
+            {
+              id: 'lunch-1',
+              start: '12:00',
+              end: '13:00',
+              reason: 'Lunch Break',
+              duration: 60,
+              enabled: true,
+              recurring: true,
+              affectedStaff: [],
+            },
+          ],
+          nightLunches: [],
         },
-        friday: { 
-          morning: { start: '08:00', end: '12:00', enabled: true }, 
-          afternoon: { start: '13:00', end: '17:00', enabled: true }, 
-          night: { start: '18:00', end: '22:00', enabled: false }, 
-          lunches: [{ 
-            id: 'lunch-1', 
-            start: '12:00', 
-            end: '13:00', 
-            reason: 'Lunch Break', 
-            duration: 60, 
-            enabled: true, 
-            recurring: true, 
-            affectedStaff: [] 
-          }], 
-          nightLunches: [] 
+        friday: {
+          morning: { start: '08:00', end: '12:00', enabled: true },
+          afternoon: { start: '13:00', end: '17:00', enabled: true },
+          night: { start: '18:00', end: '22:00', enabled: false },
+          lunches: [
+            {
+              id: 'lunch-1',
+              start: '12:00',
+              end: '13:00',
+              reason: 'Lunch Break',
+              duration: 60,
+              enabled: true,
+              recurring: true,
+              affectedStaff: [],
+            },
+          ],
+          nightLunches: [],
         },
-        saturday: { 
-          morning: { start: '09:00', end: '13:00', enabled: true }, 
-          afternoon: { start: '14:00', end: '18:00', enabled: true }, 
-          night: { start: '19:00', end: '22:00', enabled: false }, 
-          lunches: [{ 
-            id: 'lunch-1', 
-            start: '13:00', 
-            end: '14:00', 
-            reason: 'Lunch Break', 
-            duration: 60, 
-            enabled: true, 
-            recurring: true, 
-            affectedStaff: [] 
-          }], 
-          nightLunches: [] 
+        saturday: {
+          morning: { start: '09:00', end: '13:00', enabled: true },
+          afternoon: { start: '14:00', end: '18:00', enabled: true },
+          night: { start: '19:00', end: '22:00', enabled: false },
+          lunches: [
+            {
+              id: 'lunch-1',
+              start: '13:00',
+              end: '14:00',
+              reason: 'Lunch Break',
+              duration: 60,
+              enabled: true,
+              recurring: true,
+              affectedStaff: [],
+            },
+          ],
+          nightLunches: [],
         },
-        sunday: { 
-          morning: { start: '10:00', end: '14:00', enabled: false }, 
-          afternoon: { start: '15:00', end: '19:00', enabled: false }, 
-          night: { start: '20:00', end: '23:00', enabled: false }, 
-          lunches: [], 
-          nightLunches: [] 
+        sunday: {
+          morning: { start: '10:00', end: '14:00', enabled: false },
+          afternoon: { start: '15:00', end: '19:00', enabled: false },
+          night: { start: '20:00', end: '23:00', enabled: false },
+          lunches: [],
+          nightLunches: [],
         },
       };
 
@@ -353,7 +418,6 @@ const weeklyScheduleSlice = createSlice({
 
   extraReducers: (builder) => {
     builder
-      // GET
       .addCase(getDefaultOperationalHours.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -366,10 +430,9 @@ const weeklyScheduleSlice = createSlice({
       })
       .addCase(getDefaultOperationalHours.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.payload ?? 'Failed to fetch default operational hours';
       })
 
-      // UPDATE
       .addCase(updateDefaultOperationalHours.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -382,10 +445,9 @@ const weeklyScheduleSlice = createSlice({
       })
       .addCase(updateDefaultOperationalHours.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.payload ?? 'Failed to update default operational hours';
       })
 
-      // RESET
       .addCase(resetDefaultOperationalHours.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -398,7 +460,7 @@ const weeklyScheduleSlice = createSlice({
       })
       .addCase(resetDefaultOperationalHours.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string;
+        state.error = action.payload ?? 'Failed to reset default operational hours';
       });
   },
 });

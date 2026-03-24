@@ -1,7 +1,17 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
-// Interface matching your backend Practitioner model
+// ---------- Types ----------
+export interface WorkingHour {
+  day: string;           // e.g., 'monday', 'tuesday'
+  start: string;         // e.g., '09:00'
+  end: string;           // e.g., '17:00'
+  isWorkingDay: boolean;
+  lunchStart?: string;
+  lunchEnd?: string;
+  // ... other fields as per your backend structure
+}
+
 export interface Practitioner {
   _id: string;
   practitioner_id: string;
@@ -20,7 +30,7 @@ export interface Practitioner {
   isTemporary: boolean;
   maxPatientsPerSlot: number;
   hourlyRate: number;
-  defaultWorkingHours: any[];
+  defaultWorkingHours: WorkingHour[];  // ✅ replaced any[]
   currentStatus: 'available' | 'busy' | 'on_break' | 'off_duty' | 'absent';
   currentPatientLoad: number;
   absences: Absence[];
@@ -59,21 +69,35 @@ interface MedicalStaffState {
   success: string | null;
 }
 
+// ---------- Helper ----------
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    return error.response?.data?.message || error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'An unknown error occurred';
+};
+
+// ---------- Initial State ----------
 const initialState: MedicalStaffState = {
   practitioners: [],
   loading: false,
   currentPractitionerView: null,
   showPractitionerSchedule: false,
   error: null,
-  success: null
+  success: null,
 };
 
-// Create axios instance with auth interceptor
+// ---------- Axios Instance with Auth ----------
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://dmrs.onrender.com',
 });
 
-// Add auth token to requests
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
@@ -87,87 +111,97 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Thunks
-export const fetchPractitioners = createAsyncThunk(
+// ---------- Thunks ----------
+
+// Define response shape for fetchPractitioners
+interface PractitionersResponse {
+  success: boolean;
+  data: Practitioner[];
+}
+
+export const fetchPractitioners = createAsyncThunk<
+  PractitionersResponse,
+  void,
+  { rejectValue: string }
+>(
   'medicalStaff/fetchPractitioners',
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get('/api/practitioners');
-      return response.data;
-    } catch (error: any) {
+      return response.data as PractitionersResponse;
+    } catch (error: unknown) {
       console.error('Fetch practitioners error:', error);
-      if (error.response?.data?.message) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message || 'Failed to fetch practitioners');
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
-export const updatePractitioner = createAsyncThunk(
+export const updatePractitioner = createAsyncThunk<
+  { data: Practitioner },
+  { practitionerId: string; updates: Partial<Practitioner> },
+  { rejectValue: string }
+>(
   'medicalStaff/updatePractitioner',
-  async ({ practitionerId, updates }: { practitionerId: string; updates: Partial<Practitioner> }, { rejectWithValue }) => {
+  async ({ practitionerId, updates }, { rejectWithValue }) => {
     try {
       console.log('Updating practitioner:', practitionerId, updates);
-      
       const response = await api.put(`/api/practitioners/${practitionerId}`, updates);
-      return response.data;
-    } catch (error: any) {
+      return response.data as { data: Practitioner };
+    } catch (error: unknown) {
       console.error('Update practitioner error:', error);
-      if (error.response?.data?.message) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message || 'Failed to update practitioner');
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
-export const deletePractitioner = createAsyncThunk(
+export const deletePractitioner = createAsyncThunk<
+  { data: { _id: string } },
+  string,
+  { rejectValue: string }
+>(
   'medicalStaff/deletePractitioner',
-  async (practitionerId: string, { rejectWithValue }) => {
+  async (practitionerId, { rejectWithValue }) => {
     try {
       console.log('Deleting practitioner:', practitionerId);
-      
       const response = await api.delete(`/api/practitioners/${practitionerId}`);
-      return response.data;
-    } catch (error: any) {
+      return response.data as { data: { _id: string } };
+    } catch (error: unknown) {
       console.error('Delete practitioner error:', error);
-      if (error.response?.data?.message) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message || 'Failed to delete practitioner');
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
-export const addAbsence = createAsyncThunk(
+export const addAbsence = createAsyncThunk<
+  { data: Practitioner },
+  { practitionerId: string; absence: Omit<Absence, '_id'> },
+  { rejectValue: string }
+>(
   'medicalStaff/addAbsence',
-  async ({ practitionerId, absence }: { practitionerId: string; absence: Omit<Absence, '_id'> }, { rejectWithValue }) => {
+  async ({ practitionerId, absence }, { rejectWithValue }) => {
     try {
       console.log('Adding absence:', practitionerId, absence);
-      
+
       // Get current practitioner first
       const currentResponse = await api.get(`/api/practitioners/${practitionerId}`);
-      const currentPractitioner = currentResponse.data.data;
-      
+      const currentPractitioner = (currentResponse.data as { data: Practitioner }).data;
+
       // Update with new absence
       const updatedAbsences = [...(currentPractitioner.absences || []), absence];
-      
+
       const updateResponse = await api.put(`/api/practitioners/${practitionerId}`, {
-        absences: updatedAbsences
+        absences: updatedAbsences,
       });
-      
-      return updateResponse.data;
-    } catch (error: any) {
+
+      return updateResponse.data as { data: Practitioner };
+    } catch (error: unknown) {
       console.error('Add absence error:', error);
-      if (error.response?.data?.message) {
-        return rejectWithValue(error.response.data.message);
-      }
-      return rejectWithValue(error.message || 'Failed to add absence');
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
+// ---------- Slice ----------
 const medicalStaffSlice = createSlice({
   name: 'medicalStaff',
   initialState,
@@ -188,12 +222,15 @@ const medicalStaffSlice = createSlice({
       state.error = null;
       state.success = null;
     },
-    updatePractitionerStatus: (state, action: PayloadAction<{ practitionerId: string; status: Practitioner['currentStatus'] }>) => {
-      const practitioner = state.practitioners.find(p => p._id === action.payload.practitionerId);
+    updatePractitionerStatus: (
+      state,
+      action: PayloadAction<{ practitionerId: string; status: Practitioner['currentStatus'] }>
+    ) => {
+      const practitioner = state.practitioners.find((p) => p._id === action.payload.practitionerId);
       if (practitioner) {
         practitioner.currentStatus = action.payload.status;
       }
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -204,17 +241,18 @@ const medicalStaffSlice = createSlice({
       })
       .addCase(fetchPractitioners.fulfilled, (state, action) => {
         state.loading = false;
-        state.practitioners = action.payload.data || action.payload;
+        state.practitioners = action.payload.data;
         state.success = 'Practitioners loaded successfully';
       })
       .addCase(fetchPractitioners.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
+
       // Update Practitioner
       .addCase(updatePractitioner.fulfilled, (state, action) => {
         const updatedPractitioner = action.payload.data;
-        state.practitioners = state.practitioners.map(p =>
+        state.practitioners = state.practitioners.map((p) =>
           p._id === updatedPractitioner._id ? updatedPractitioner : p
         );
         state.success = 'Practitioner updated successfully';
@@ -222,19 +260,21 @@ const medicalStaffSlice = createSlice({
       .addCase(updatePractitioner.rejected, (state, action) => {
         state.error = action.payload as string;
       })
+
       // Delete Practitioner
       .addCase(deletePractitioner.fulfilled, (state, action) => {
         const deletedPractitionerId = action.payload.data?._id || action.meta.arg;
-        state.practitioners = state.practitioners.filter(p => p._id !== deletedPractitionerId);
+        state.practitioners = state.practitioners.filter((p) => p._id !== deletedPractitionerId);
         state.success = 'Practitioner deleted successfully';
       })
       .addCase(deletePractitioner.rejected, (state, action) => {
         state.error = action.payload as string;
       })
+
       // Add Absence
       .addCase(addAbsence.fulfilled, (state, action) => {
         const updatedPractitioner = action.payload.data;
-        state.practitioners = state.practitioners.map(p =>
+        state.practitioners = state.practitioners.map((p) =>
           p._id === updatedPractitioner._id ? updatedPractitioner : p
         );
         state.success = 'Absence added successfully';
@@ -242,7 +282,7 @@ const medicalStaffSlice = createSlice({
       .addCase(addAbsence.rejected, (state, action) => {
         state.error = action.payload as string;
       });
-  }
+  },
 });
 
 export const {
@@ -251,7 +291,7 @@ export const {
   setError,
   setSuccess,
   clearNotifications,
-  updatePractitionerStatus
+  updatePractitionerStatus,
 } = medicalStaffSlice.actions;
 
 export default medicalStaffSlice.reducer;

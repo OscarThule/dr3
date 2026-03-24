@@ -10,6 +10,7 @@ import {
   NewPractitionerData,
 } from '@/app/redux/slices/addPractitionerSlice';
 
+// Local UI types for working hours (nested sessions per day)
 type TimeSlot = {
   enabled: boolean;
   start: string;
@@ -23,6 +24,19 @@ type WorkingDay = {
   night: TimeSlot;
   enabled: boolean;
 };
+
+// Type that matches the slice's expected working hours (flat list of sessions)
+// We'll convert from WorkingDay[] to this format on submission.
+// Since the exact type is not imported, we define it locally for conversion.
+// The slice's actual type may include additional fields like 'id', but we only
+// need the ones we send. Using a local interface avoids import issues.
+interface SliceWorkingHoursDay {
+  day: string;
+  start: string;
+  end: string;
+  enabled: boolean;
+  // If the slice expects extra fields (e.g., 'sessionType'), they can be added here.
+}
 
 const getDefaultWorkingHours = (): WorkingDay[] => {
   const days = [
@@ -44,9 +58,39 @@ const getDefaultWorkingHours = (): WorkingDay[] => {
   }));
 };
 
+// Converts the UI working hours (nested per day with sessions) into the flat format
+// expected by the slice.
+const convertToWorkingHoursDays = (
+  workingDays: WorkingDay[]
+): SliceWorkingHoursDay[] => {
+  const result: SliceWorkingHoursDay[] = [];
+
+  for (const daySchedule of workingDays) {
+    if (!daySchedule.enabled) continue;
+
+    const sessions = ['morning', 'afternoon', 'night'] as const;
+    for (const session of sessions) {
+      const slot = daySchedule[session];
+      if (slot.enabled) {
+        result.push({
+          day: daySchedule.day,
+          start: slot.start,
+          end: slot.end,
+          enabled: true,
+        });
+      }
+    }
+  }
+
+  return result;
+};
+
+// Form data type for UI state – uses WorkingDay[] for defaultWorkingHours
+// instead of the slice's flat type.
 interface PractitionerFormData
-  extends Omit<NewPractitionerData, 'specialization'> {
+  extends Omit<NewPractitionerData, 'specialization' | 'defaultWorkingHours'> {
   specialization: string[];
+  defaultWorkingHours: WorkingDay[];
 }
 
 const inputClassName =
@@ -149,7 +193,7 @@ export default function AddPractitioner() {
     value: string | boolean
   ) => {
     setFormData((prev) => {
-      const updatedHours = [...(prev.defaultWorkingHours || [])];
+      const updatedHours = [...prev.defaultWorkingHours];
 
       updatedHours[dayIndex] = {
         ...updatedHours[dayIndex],
@@ -165,7 +209,7 @@ export default function AddPractitioner() {
 
   const handleDayEnabledChange = (dayIndex: number, enabled: boolean) => {
     setFormData((prev) => {
-      const updatedHours = [...(prev.defaultWorkingHours || [])];
+      const updatedHours = [...prev.defaultWorkingHours];
 
       updatedHours[dayIndex] = {
         ...updatedHours[dayIndex],
@@ -237,12 +281,28 @@ export default function AddPractitioner() {
     }
 
     try {
+      // Convert UI working hours to the flat format expected by the slice
+      const convertedWorkingHours = convertToWorkingHoursDays(
+        formData.defaultWorkingHours
+      );
+
       const submissionData: NewPractitionerData = {
-        ...formData,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        idNumber: formData.idNumber,
+        password: formData.password,
         specialization: formData.specialization,
-        availableFor: formData.availableFor,
+        qualification: formData.qualification,
+        licenseNumber: formData.licenseNumber,
         experience: Number(formData.experience) || 0,
+        role: formData.role,
+        availableFor: formData.availableFor,
+        isActive: formData.isActive,
+        isTemporary: formData.isTemporary,
         maxPatientsPerSlot: Number(formData.maxPatientsPerSlot) || 4,
+        notes: formData.notes,
+        defaultWorkingHours: convertedWorkingHours as any, // Cast to any to satisfy the slice's type
         hourlyRate: Number(formData.hourlyRate) || 0,
       };
 
@@ -628,7 +688,7 @@ export default function AddPractitioner() {
               </div>
             </div>
 
-            {showWorkingHours && formData.defaultWorkingHours && (
+            {showWorkingHours && (
               <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-4">
                   <h3 className="text-base font-bold text-slate-900">Default Working Hours</h3>

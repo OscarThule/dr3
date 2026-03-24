@@ -1,15 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { getAuthToken } from '@/app/reduxPatient/slices/patient/profileSlice';
 
-// Types
+// ========== Types ==========
+interface MedicalCenterAddress {
+  line1?: string;
+  line2?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+  country?: string;
+}
+
 interface PopulatedMedicalCenter {
   _id?: string;
   facility_name?: string;
-  address?: any;
+  address?: MedicalCenterAddress;
   phone?: string;
 }
 
@@ -54,11 +63,17 @@ interface Appointment {
   medical_center?: PopulatedMedicalCenter;
 }
 
+interface ApiResponse {
+  success: boolean;
+  data?: Appointment[];
+  message?: string;
+}
+
 const API_BASE_URL = 'https://dmrs.onrender.com/api';
 
-const formatCurrency = (amount?: number, currency = 'ZAR') => {
+// ========== Helper Functions ==========
+function formatCurrency(amount?: number, currency = 'ZAR'): string {
   const safeAmount = Number(amount || 0);
-
   try {
     return new Intl.NumberFormat('en-ZA', {
       style: 'currency',
@@ -68,34 +83,109 @@ const formatCurrency = (amount?: number, currency = 'ZAR') => {
   } catch {
     return `R ${safeAmount.toFixed(2)}`;
   }
-};
+}
 
+function getAxiosErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    return err.response?.data?.message || err.message || fallback;
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return fallback;
+}
+
+function formatDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function formatTime(timeString: string): string {
+  if (!timeString) return '';
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+}
+
+function getStatusColor(status: Appointment['status']): string {
+  switch (status) {
+    case 'confirmed':
+      return 'bg-green-100 text-green-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'cancelled':
+      return 'bg-red-100 text-red-800';
+    case 'completed':
+      return 'bg-blue-100 text-blue-800';
+    case 'rescheduled':
+      return 'bg-purple-100 text-purple-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function getPaymentStatusColor(status: Appointment['payment_status']): string {
+  switch (status) {
+    case 'success':
+      return 'bg-green-100 text-green-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'failed':
+      return 'bg-red-100 text-red-800';
+    case 'refunded':
+      return 'bg-blue-100 text-blue-800';
+    case 'none':
+      return 'bg-gray-100 text-gray-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function getStatusText(status: string): string {
+  return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+}
+
+function getCenterName(appointment: Appointment): string {
+  if (typeof appointment.medical_center_id === 'object' && appointment.medical_center_id !== null) {
+    return appointment.medical_center_id.facility_name || 'Medical Center';
+  }
+  return appointment.medical_center?.facility_name || 'Medical Center';
+}
+
+function getCenterId(appointment: Appointment): string {
+  if (typeof appointment.medical_center_id === 'object' && appointment.medical_center_id !== null) {
+    return appointment.medical_center_id._id || '';
+  }
+  return appointment.medical_center_id || '';
+}
+
+// ========== Main Component ==========
 export default function PatientAppointmentsPage() {
   const router = useRouter();
-
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'upcoming' | 'past' | 'all'>('upcoming');
 
-  useEffect(() => {
-    fetchAppointments();
-  }, [filter]);
-
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const token = getAuthToken();
-
       if (!token) {
         setError('You are not logged in');
         setLoading(false);
         return;
       }
 
-      const response = await axios.get(`${API_BASE_URL}/bookings/patient`, {
+      const response = await axios.get<ApiResponse>(`${API_BASE_URL}/bookings/patient`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -107,57 +197,58 @@ export default function PatientAppointmentsPage() {
         return;
       }
 
-      let filteredAppointments: Appointment[] = response.data.data || [];
+      let allAppointments: Appointment[] = response.data.data || [];
       const now = new Date();
 
+      let filteredAppointments: Appointment[] = [];
       if (filter === 'upcoming') {
-        filteredAppointments = filteredAppointments.filter((appt: Appointment) => {
+        filteredAppointments = allAppointments.filter((appt) => {
           const apptDate = new Date(appt.date);
           const [h, m] = appt.slot_start.split(':').map(Number);
           apptDate.setHours(h, m, 0, 0);
           return apptDate > now && appt.status !== 'cancelled';
         });
-      }
-
-      if (filter === 'past') {
-        filteredAppointments = filteredAppointments.filter((appt: Appointment) => {
+      } else if (filter === 'past') {
+        filteredAppointments = allAppointments.filter((appt) => {
           const apptDate = new Date(appt.date);
           const [h, m] = appt.slot_start.split(':').map(Number);
           apptDate.setHours(h, m, 0, 0);
           return apptDate <= now || appt.status === 'cancelled';
         });
+      } else {
+        filteredAppointments = allAppointments;
       }
 
-      filteredAppointments.sort((a: Appointment, b: Appointment) => {
+      filteredAppointments.sort((a, b) => {
         const dateA = new Date(a.date).getTime();
         const dateB = new Date(b.date).getTime();
         return filter === 'upcoming' ? dateA - dateB : dateB - dateA;
       });
 
       setAppointments(filteredAppointments);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          'Unexpected error while fetching appointments'
-      );
+    } catch (err: unknown) {
+      const message = getAxiosErrorMessage(err, 'Unexpected error while fetching appointments');
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const handleCancelAppointment = async (appointmentId: string) => {
     if (!confirm('Are you sure you want to cancel this appointment?')) return;
 
     try {
       const token = getAuthToken();
-
       if (!token) {
         router.push('/login');
         return;
       }
 
-      const response = await axios.put(
+      const response = await axios.put<{ success: boolean }>(
         `${API_BASE_URL}/bookings/${appointmentId}/cancel`,
         {},
         {
@@ -174,93 +265,12 @@ export default function PatientAppointmentsPage() {
       } else {
         alert('Failed to cancel appointment');
       }
-    } catch (err: any) {
-      alert(
-        err?.response?.data?.message ||
-          err?.message ||
-          'Failed to cancel appointment'
-      );
+    } catch (err: unknown) {
+      alert(getAxiosErrorMessage(err, 'Failed to cancel appointment'));
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const formatTime = (timeString: string) => {
-    if (!timeString) return '';
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const hour12 = hours % 12 || 12;
-    return `${hour12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      case 'completed':
-        return 'bg-blue-100 text-blue-800';
-      case 'rescheduled':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case 'success':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'refunded':
-        return 'bg-blue-100 text-blue-800';
-      case 'none':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
-  };
-
-  const getCenterName = (appointment: Appointment) => {
-    if (
-      typeof appointment.medical_center_id === 'object' &&
-      appointment.medical_center_id !== null
-    ) {
-      return appointment.medical_center_id.facility_name || 'Medical Center';
-    }
-
-    return appointment.medical_center?.facility_name || 'Medical Center';
-  };
-
-  const getCenterId = (appointment: Appointment) => {
-    if (
-      typeof appointment.medical_center_id === 'object' &&
-      appointment.medical_center_id !== null
-    ) {
-      return appointment.medical_center_id._id || '';
-    }
-
-    return appointment.medical_center_id || '';
-  };
-
+  // ========== JSX ==========
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
@@ -270,6 +280,7 @@ export default function PatientAppointmentsPage() {
               <button
                 onClick={() => router.push('/entry')}
                 className="mr-3 p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Go back"
               >
                 <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -375,7 +386,6 @@ export default function PatientAppointmentsPage() {
                 Number(appointment.consultation_fee || 0) - Number(appointment.deposit_amount || 0),
                 0
               );
-
               const centerName = getCenterName(appointment);
               const centerId = getCenterId(appointment);
 

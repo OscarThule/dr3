@@ -195,6 +195,7 @@ interface ApiResponse<T> {
   pagination?: PaginationInfo;
 }
 
+// Backend appointment structure as returned by the API
 interface BackendAppointment {
   _id: string;
   appointment_id?: string;
@@ -284,6 +285,36 @@ interface BackendAppointment {
   payment_status?: PaymentStatus;
   payment_reference?: string | null;
 }
+
+// Type for the raw doctor data from the API (practitioner)
+interface PractitionerFromApi {
+  _id?: string;
+  practitioner_id?: string;
+  full_name?: string;
+  specialties?: string[];
+  contact_email?: string;
+  contact_phone?: string;
+  is_active?: boolean;
+  colorCode?: string;
+}
+
+// Type for the response data when fetching medical center settings
+interface MedicalCenterApiResponse {
+  _id: string;
+  facility_name: string;
+  address: string | { line1?: string; line2?: string; city?: string; province?: string; postal?: string };
+  phone: string;
+  official_domain_email?: string;
+  practitioners?: PractitionerFromApi[];
+  settings?: {
+    slotDuration?: number;
+    bufferTime?: number;
+    maxDailyAppointments?: number;
+  };
+}
+
+// Union type for possible data shapes in the appointments response
+type AppointmentsResponseData = BackendAppointment[] | { data: BackendAppointment[] };
 
 interface MainPageState {
   appointments: Booking[];
@@ -556,7 +587,7 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {},
     token?: string | null
-  ) {
+  ): Promise<unknown> {
     const authToken =
       token || (typeof window !== 'undefined' ? localStorage.getItem('authToken') : null);
 
@@ -587,7 +618,7 @@ class ApiService {
 
       let message = `HTTP ${response.status}: ${response.statusText}`;
       try {
-        const err = await response.json();
+        const err = await response.json() as { message?: string };
         message = err?.message || message;
       } catch {
         // ignore json parse failure
@@ -605,7 +636,7 @@ class ApiService {
     filters?: Record<string, string>,
     token?: string | null,
     medicalCenterId?: string | null
-  ) {
+  ): Promise<ApiResponse<AppointmentsResponseData>> {
     const queryParams = new URLSearchParams({
       page: String(page),
       limit: String(limit),
@@ -616,26 +647,26 @@ class ApiService {
       queryParams.set('medical_center_id', medicalCenterId);
     }
 
-    return this.fetchWithAuth(`/api/bookings/all?${queryParams.toString()}`, {}, token);
+    return this.fetchWithAuth(`/api/bookings/all?${queryParams.toString()}`, {}, token) as Promise<ApiResponse<AppointmentsResponseData>>;
   }
 
   async getPatientAppointments(
     filters?: Record<string, string>,
     token?: string | null
-  ) {
+  ): Promise<ApiResponse<BackendAppointment[]>> {
     const queryParams = new URLSearchParams({
       limit: '100',
       ...(filters || {}),
     });
 
-    return this.fetchWithAuth(`/api/bookings/patient?${queryParams.toString()}`, {}, token);
+    return this.fetchWithAuth(`/api/bookings/patient?${queryParams.toString()}`, {}, token) as Promise<ApiResponse<BackendAppointment[]>>;
   }
 
   async cancelAppointment(
     bookingId: string,
     reason?: string,
     token?: string | null
-  ) {
+  ): Promise<ApiResponse<BackendAppointment>> {
     return this.fetchWithAuth(
       `/api/bookings/${bookingId}/cancel`,
       {
@@ -643,14 +674,14 @@ class ApiService {
         body: JSON.stringify({ reason }),
       },
       token
-    );
+    ) as Promise<ApiResponse<BackendAppointment>>;
   }
 
   async updateAppointment(
     bookingId: string,
     updates: Record<string, unknown>,
     token?: string | null
-  ) {
+  ): Promise<ApiResponse<BackendAppointment>> {
     return this.fetchWithAuth(
       `/api/bookings/appointment/${bookingId}/update`,
       {
@@ -658,15 +689,23 @@ class ApiService {
         body: JSON.stringify(updates),
       },
       token
-    );
+    ) as Promise<ApiResponse<BackendAppointment>>;
   }
 
-  async getMedicalCenterSettings(token?: string | null) {
-    return this.fetchWithAuth('/api/medical-centers/me', {}, token);
+  async getMedicalCenterSettings(token?: string | null): Promise<ApiResponse<MedicalCenterApiResponse>> {
+    return this.fetchWithAuth('/api/medical-centers/me', {}, token) as Promise<ApiResponse<MedicalCenterApiResponse>>;
   }
 }
 
 const apiService = new ApiService();
+
+// Helper to extract error message from unknown error
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') return error.message;
+  return 'An unknown error occurred';
+};
 
 // ============ THUNKS ============
 
@@ -691,7 +730,7 @@ export const fetchAppointments = createAsyncThunk<
       if (date) queryFilters.date = date;
       if (practitioner) queryFilters.practitioner = practitioner;
 
-      let response: ApiResponse<BackendAppointment[] | { data: BackendAppointment[] }>;
+      let response: ApiResponse<AppointmentsResponseData>;
 
       try {
         response = await apiService.getMedicalCenterAppointments(
@@ -702,18 +741,26 @@ export const fetchAppointments = createAsyncThunk<
           state.medicalCenterId
         );
       } catch {
-        response = await apiService.getPatientAppointments(queryFilters, state.authToken);
+        // Fallback to patient appointments if medical center fails (e.g., patient logged in)
+        const patientResponse = await apiService.getPatientAppointments(queryFilters, state.authToken);
+        response = patientResponse as ApiResponse<AppointmentsResponseData>;
       }
 
       if (!response?.success) {
         throw new Error(response?.message || 'Failed to fetch appointments');
       }
 
-      const rawData = Array.isArray(response.data)
-        ? response.data
-        : Array.isArray((response.data as any)?.data)
-        ? (response.data as any).data
-        : [];
+      // Safely extract the array of appointments
+      let rawData: BackendAppointment[] = [];
+      if (Array.isArray(response.data)) {
+        rawData = response.data;
+      } else if (response.data && typeof response.data === 'object' && 'data' in response.data) {
+        // response.data is an object with a 'data' property that is an array
+        const nestedData = response.data as { data: BackendAppointment[] };
+        if (Array.isArray(nestedData.data)) {
+          rawData = nestedData.data;
+        }
+      }
 
       const bookings = rawData.map(mapBackendToBooking);
 
@@ -726,8 +773,8 @@ export const fetchAppointments = createAsyncThunk<
           pages: 1,
         },
       };
-    } catch (error: any) {
-      return rejectWithValue(error?.message || 'Failed to fetch appointments');
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
@@ -747,11 +794,11 @@ export const loadMedicalCenterSettings = createAsyncThunk<
         return null;
       }
 
-      const data = response.data || response;
+      const data = response.data as MedicalCenterApiResponse;
 
-      const practitioners = Array.isArray(data?.practitioners) ? data.practitioners : [];
+      const practitioners = Array.isArray(data.practitioners) ? data.practitioners : [];
 
-      const mappedDoctors: Doctor[] = practitioners.map((doc: any) => ({
+      const mappedDoctors: Doctor[] = practitioners.map((doc: PractitionerFromApi) => ({
         _id: doc._id || doc.practitioner_id || '',
         name: doc.full_name || 'Unknown Doctor',
         specialization: Array.isArray(doc.specialties) ? doc.specialties : ['general'],
@@ -785,8 +832,8 @@ export const loadMedicalCenterSettings = createAsyncThunk<
           max_daily_appointments: data.settings?.maxDailyAppointments || 100,
         },
       };
-    } catch (error: any) {
-      return rejectWithValue(error?.message || 'Failed to load medical center settings');
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
@@ -810,8 +857,8 @@ export const cancelAppointment = createAsyncThunk<
         bookingId,
         appointment: mapBackendToBooking(response.data),
       };
-    } catch (error: any) {
-      return rejectWithValue(error?.message || 'Failed to cancel appointment');
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
@@ -839,8 +886,8 @@ export const updateAppointmentStatus = createAsyncThunk<
         bookingId,
         updates: mapBackendToBooking(response.data),
       };
-    } catch (error: any) {
-      return rejectWithValue(error?.message || 'Failed to update appointment');
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
@@ -881,8 +928,8 @@ export const handleReschedule = createAsyncThunk<
         newDate,
         newTime,
       };
-    } catch (error: any) {
-      return rejectWithValue(error?.message || 'Failed to reschedule appointment');
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );

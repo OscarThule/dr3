@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// Types
+// ==================== TYPES ====================
+
 export type Address = {
   line1: string;
   line2?: string;
@@ -35,7 +36,40 @@ export type Statistics = {
   response_time: number;
 };
 
+export type ConsultationCosts = {
+  government?: {
+    faceToFace?: number;
+    online?: number;
+  };
+  private?: {
+    faceToFace?: number;
+    online?: number;
+  };
+  effectiveFrom?: string;
+};
+
+export type PaymentSettings = {
+  remainingAmount: number;
+  allowPartialPayments?: boolean;
+  consultationFee?: number;
+  onlineConsultationFee?: number;
+  bookingDeposit?: number;
+  depositPercentage?: number;
+  lastUpdated?: string;
+};
+
+export type Branch = {
+  _id: string;
+  branch_id: string;
+  facility_name: string;
+  address: Address;
+  phone?: string;
+  is_active: boolean;
+};
+
 export type MedicalCenter = {
+  paymentSettings: PaymentSettings | undefined;
+  
   _id: string;
   medical_center_id: string;
   facility_name: string;
@@ -47,17 +81,14 @@ export type MedicalCenter = {
   address: Address;
   practitioners: Practitioner[];
   settings: {
-  consultationCosts?: ConsultationCosts;
-} | null;
-
-paymentSettings?: PaymentSettings;
-billing: {
-  plan: string;
-  status: string;
-};
-
+    consultationCosts?: ConsultationCosts;
+    paymentSettings?: PaymentSettings;
+  } | null;
+  billing: {
+    plan: string;
+    status: string;
+  };
   statistics: Statistics;
-  
   theme_colors?: {
     primary: string;
     secondary: string;
@@ -66,7 +97,7 @@ billing: {
   is_verified: boolean;
   is_active: boolean;
   parent_center_id: string | null;
-  branches: any[];
+  branches: Branch[];
   created_at: string;
   updated_at: string;
   __v: number;
@@ -107,28 +138,8 @@ export type EntryState = {
   };
 };
 
-export type ConsultationCosts = {
-  government?: {
-    faceToFace?: number;
-    online?: number;
-  };
-  private?: {
-    faceToFace?: number;
-    online?: number;
-  };
-  effectiveFrom?: string;
-};
+// ==================== INITIAL STATE ====================
 
-export type PaymentSettings = {
-  remainingAmount: number;
-  allowPartialPayments?: boolean;
-  consultationFee?: number;
-  onlineConsultationFee?: number;
-  bookingDeposit?: number;
-  depositPercentage?: number;
-  lastUpdated?: string;
-};
- 
 const initialState: EntryState = {
   medicalCenters: [],
   filteredCenters: [],
@@ -147,92 +158,60 @@ const initialState: EntryState = {
     clinics: 0,
     averageRating: 0,
   },
-  
 };
 
-// Async thunks - FIXED VERSION
-export const fetchMedicalCenters = createAsyncThunk(
-  'entry/fetchMedicalCenters',
-  async (_, { rejectWithValue }) => {
-    console.log('🚀 fetchMedicalCenters thunk started');
-    
-    try {
-      const response = await fetch('https://dmrs.onrender.com/api/medical-centers/all', {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
+// ==================== HELPER FUNCTIONS ====================
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('📊 API Response:', {
-        success: data.success,
-        dataLength: data.data?.length,
-        data: data.data
-      });
-      
-      if (data.success && Array.isArray(data.data)) {
-        const centers = data.data;
-        console.log(`✅ Retrieved ${centers.length} medical centers`);
-        
-        if (centers.length > 0) {
-          localStorage.setItem('medicalCenterId', centers[0]._id);
-        }
-        
-        return centers;
-      } else {
-        console.error('❌ Invalid response format:', data);
-        return rejectWithValue('Invalid response format');
-      }
-    } catch (err: any) {
-      console.error('❌ Fetch error:', err.message);
-      
-      // Check for CORS or network errors
-      if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-        console.error('🌐 Network/CORS error detected');
-        return rejectWithValue('Cannot connect to server. Check if backend is running and CORS is configured.');
-      }
-      
-      return rejectWithValue(err.message || 'Failed to fetch medical centers');
-    }
-  }
-);
+// Format address for display
+export const formatAddress = (center: MedicalCenter): string => {
+  if (!center?.address) return 'Address not available';
+  const addr = center.address;
+  const parts = [addr.line1, addr.line2, addr.city, addr.province].filter(
+    (part) => part && part.trim() !== ''
+  );
+  return parts.join(', ') || 'Address not available';
+};
 
-export const loadPatientInfo = createAsyncThunk(
-  'entry/loadPatientInfo',
-  async () => {
-    try {
-      const patientData = localStorage.getItem('patientInfo');
-      if (patientData) {
-        return JSON.parse(patientData);
-      }
-      return null;
-    } catch (error) {
-      console.error('Error loading patient info:', error);
-      return null;
-    }
-  }
-);
+// Compute statistics from medical centers
+const updateStats = (state: EntryState): EntryState['stats'] => {
+  const centers = state.medicalCenters || [];
+  const totalPractitioners = centers.reduce(
+    (acc, center) => acc + (center?.practitioners?.length || 0),
+    0
+  );
+  const verifiedCenters = centers.filter((c) => c?.is_verified).length;
+  const activeCenters = centers.filter((c) => c?.is_active).length;
+  const hospitals = centers.filter((c) => c?.facility_type === 'hospital').length;
+  const clinics = centers.filter((c) => c?.facility_type === 'clinic').length;
+  const totalRating = centers.reduce(
+    (acc, center) => acc + (center?.statistics?.average_rating || 0),
+    0
+  );
+  const averageRating = centers.length > 0 ? totalRating / centers.length : 0;
 
-// Helper function that needs to be defined before the slice
-const filterAndSortCenters = (state: EntryState) => {
+  return {
+    totalCenters: centers.length,
+    totalPractitioners,
+    verifiedCenters,
+    activeCenters,
+    hospitals,
+    clinics,
+    averageRating,
+  };
+};
+
+// Filter and sort centers based on current state
+const filterAndSortCenters = (state: EntryState): MedicalCenter[] => {
   let filtered = [...(state.medicalCenters || [])];
 
   // Apply search filter
   if (state.searchTerm) {
     const term = state.searchTerm.toLowerCase();
-    filtered = filtered.filter(center => {
+    filtered = filtered.filter((center) => {
       if (!center) return false;
-      
       const name = center.facility_name?.toLowerCase() || '';
       const address = formatAddress(center).toLowerCase();
       const type = center.facility_type?.toLowerCase() || '';
-      
       return name.includes(term) || address.includes(term) || type.includes(term);
     });
   }
@@ -240,23 +219,22 @@ const filterAndSortCenters = (state: EntryState) => {
   // Apply type filter
   switch (state.activeFilter) {
     case 'hospital':
-      filtered = filtered.filter(center => center?.facility_type === 'hospital');
+      filtered = filtered.filter((center) => center?.facility_type === 'hospital');
       break;
     case 'clinic':
-      filtered = filtered.filter(center => center?.facility_type === 'clinic');
+      filtered = filtered.filter((center) => center?.facility_type === 'clinic');
       break;
     case 'verified':
-      filtered = filtered.filter(center => center?.is_verified);
+      filtered = filtered.filter((center) => center?.is_verified);
       break;
     case 'active':
-      filtered = filtered.filter(center => center?.is_active);
+      filtered = filtered.filter((center) => center?.is_active);
       break;
   }
 
   // Apply sorting
   filtered.sort((a, b) => {
     if (!a || !b) return 0;
-    
     switch (state.sortBy) {
       case 'rating':
         return (b.statistics?.average_rating || 0) - (a.statistics?.average_rating || 0);
@@ -273,28 +251,87 @@ const filterAndSortCenters = (state: EntryState) => {
   return filtered;
 };
 
-const updateStats = (state: EntryState) => {
-  const centers = state.medicalCenters || [];
-  const totalPractitioners = centers.reduce((acc, center) => 
-    acc + (center?.practitioners?.length || 0), 0);
-  const verifiedCenters = centers.filter(c => c?.is_verified).length;
-  const activeCenters = centers.filter(c => c?.is_active).length;
-  const hospitals = centers.filter(c => c?.facility_type === 'hospital').length;
-  const clinics = centers.filter(c => c?.facility_type === 'clinic').length;
-  const totalRating = centers.reduce((acc, center) => 
-    acc + (center?.statistics?.average_rating || 0), 0);
-  const averageRating = centers.length > 0 ? totalRating / centers.length : 0;
-  
-  return {
-    totalCenters: centers.length,
-    totalPractitioners,
-    verifiedCenters,
-    activeCenters,
-    hospitals,
-    clinics,
-    averageRating,
-  };
-};
+// ==================== ASYNC THUNKS ====================
+
+export const fetchMedicalCenters = createAsyncThunk(
+  'entry/fetchMedicalCenters',
+  async (_, { rejectWithValue }) => {
+    console.log('🚀 fetchMedicalCenters thunk started');
+    try {
+      const response = await fetch('https://dmrs.onrender.com/api/medical-centers/all', {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = (await response.json()) as {
+        success: boolean;
+        data: MedicalCenter[];
+        message?: string;
+      };
+
+      console.log('📊 API Response:', {
+        success: data.success,
+        dataLength: data.data?.length,
+        data: data.data,
+      });
+
+      if (data.success && Array.isArray(data.data)) {
+        const centers = data.data;
+        console.log(`✅ Retrieved ${centers.length} medical centers`);
+
+        if (centers.length > 0) {
+          localStorage.setItem('medicalCenterId', centers[0]._id);
+        }
+
+        return centers;
+      } else {
+        console.error('❌ Invalid response format:', data);
+        return rejectWithValue('Invalid response format');
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('❌ Fetch error:', error.message);
+
+      // Check for CORS or network errors
+      if (
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('NetworkError')
+      ) {
+        console.error('🌐 Network/CORS error detected');
+        return rejectWithValue(
+          'Cannot connect to server. Check if backend is running and CORS is configured.'
+        );
+      }
+
+      return rejectWithValue(error.message || 'Failed to fetch medical centers');
+    }
+  }
+);
+
+export const loadPatientInfo = createAsyncThunk(
+  'entry/loadPatientInfo',
+  async (): Promise<PatientInfo | null> => {
+    try {
+      const patientData = localStorage.getItem('patientInfo');
+      if (patientData) {
+        return JSON.parse(patientData) as PatientInfo;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error loading patient info:', error);
+      return null;
+    }
+  }
+);
+
+// ==================== SLICE ====================
 
 const entrySlice = createSlice({
   name: 'entry',
@@ -308,7 +345,10 @@ const entrySlice = createSlice({
       state.activeFilter = action.payload;
       state.filteredCenters = filterAndSortCenters(state);
     },
-    setSortBy: (state, action: PayloadAction<'name' | 'rating' | 'patients' | 'practitioners'>) => {
+    setSortBy: (
+      state,
+      action: PayloadAction<'name' | 'rating' | 'patients' | 'practitioners'>
+    ) => {
       state.sortBy = action.payload;
       state.filteredCenters = filterAndSortCenters(state);
     },
@@ -319,11 +359,13 @@ const entrySlice = createSlice({
     },
     logout: (state) => {
       state.patientInfo = null;
-      localStorage.removeItem('patientToken');
-      localStorage.removeItem('patientInfo');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('medicalCenterId');
-      localStorage.removeItem('medicalCentersMap');
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('patientToken');
+        localStorage.removeItem('patientInfo');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('medicalCenterId');
+        localStorage.removeItem('medicalCentersMap');
+      }
     },
   },
   extraReducers: (builder) => {
@@ -336,6 +378,7 @@ const entrySlice = createSlice({
       .addCase(fetchMedicalCenters.fulfilled, (state, action) => {
         state.loading = false;
         state.medicalCenters = action.payload || [];
+        // Recompute filtered centers and stats
         state.filteredCenters = filterAndSortCenters({
           ...state,
           medicalCenters: action.payload || [],
@@ -344,9 +387,8 @@ const entrySlice = createSlice({
       })
       .addCase(fetchMedicalCenters.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload as string || 'Failed to fetch medical centers';
+        state.error = (action.payload as string) || 'Failed to fetch medical centers';
       })
-      
       // Load patient info
       .addCase(loadPatientInfo.fulfilled, (state, action) => {
         state.patientInfo = action.payload;
@@ -354,52 +396,50 @@ const entrySlice = createSlice({
   },
 });
 
-// Helper functions
-export const formatAddress = (center: MedicalCenter) => {
-  if (!center?.address) return 'Address not available';
-  const addr = center.address;
-  const parts = [
-    addr.line1,
-    addr.line2,
-    addr.city,
-    addr.province
-  ].filter(part => part && part.trim() !== '');
-  return parts.join(', ') || 'Address not available';
-};
+// ==================== ACTIONS ====================
 
-// Export actions
-export const { setSearchTerm, setActiveFilter, setSortBy, clearFilters, logout } = entrySlice.actions;
+export const { setSearchTerm, setActiveFilter, setSortBy, clearFilters, logout } =
+  entrySlice.actions;
 
-// Export selectors - FIXED with proper fallbacks
-export const selectMedicalCenters = (state: { entry?: EntryState }) => state.entry?.medicalCenters || initialState.medicalCenters;
-export const selectFilteredCenters = (state: { entry?: EntryState }) => state.entry?.filteredCenters || initialState.filteredCenters;
-export const selectLoading = (state: { entry?: EntryState }) => state.entry?.loading || initialState.loading;
-export const selectError = (state: { entry?: EntryState }) => state.entry?.error || initialState.error;
-export const selectSearchTerm = (state: { entry?: EntryState }) => state.entry?.searchTerm || initialState.searchTerm;
-export const selectActiveFilter = (state: { entry?: EntryState }) => state.entry?.activeFilter || initialState.activeFilter;
-export const selectSortBy = (state: { entry?: EntryState }) => state.entry?.sortBy || initialState.sortBy;
-export const selectPatientInfo = (state: {
-  profile: any; entry?: EntryState 
-}) => state.profile?.patientInfo || initialState.patientInfo;
-export const selectStats = (state: { entry?: EntryState }) => state.entry?.stats || initialState.stats;
+// ==================== SELECTORS ====================
 
-// Helper functions for the component
-export const getInitials = (name: string) => {
+// Define the root state shape for this slice (can be extended in app)
+export interface RootStateWithEntry {
+  entry: EntryState;
+  // Other slices can be added here, but we only need entry for this file
+}
+
+// Simple selectors
+export const selectMedicalCenters = (state: RootStateWithEntry) =>
+  state.entry.medicalCenters;
+export const selectFilteredCenters = (state: RootStateWithEntry) =>
+  state.entry.filteredCenters;
+export const selectLoading = (state: RootStateWithEntry) => state.entry.loading;
+export const selectError = (state: RootStateWithEntry) => state.entry.error;
+export const selectSearchTerm = (state: RootStateWithEntry) => state.entry.searchTerm;
+export const selectActiveFilter = (state: RootStateWithEntry) => state.entry.activeFilter;
+export const selectSortBy = (state: RootStateWithEntry) => state.entry.sortBy;
+export const selectPatientInfo = (state: RootStateWithEntry) => state.entry.patientInfo;
+export const selectStats = (state: RootStateWithEntry) => state.entry.stats;
+
+// ==================== UTILITY FUNCTIONS ====================
+
+export const getInitials = (name: string): string => {
   if (!name) return 'MC';
   return name
     .split(' ')
-    .map(word => word.charAt(0))
+    .map((word) => word.charAt(0))
     .join('')
     .toUpperCase()
     .slice(0, 3);
 };
 
-export const getSpecialties = (center: MedicalCenter) => {
+export const getSpecialties = (center: MedicalCenter): string[] => {
   if (!center?.practitioners || !Array.isArray(center.practitioners)) return [];
   const specialties: string[] = [];
   center.practitioners.forEach((practitioner) => {
     if (practitioner.specialties && Array.isArray(practitioner.specialties)) {
-      practitioner.specialties.forEach((specialty: string) => {
+      practitioner.specialties.forEach((specialty) => {
         if (specialty && !specialties.includes(specialty)) {
           specialties.push(specialty);
         }
@@ -408,5 +448,7 @@ export const getSpecialties = (center: MedicalCenter) => {
   });
   return specialties.slice(0, 5);
 };
+
+// ==================== EXPORT ====================
 
 export default entrySlice.reducer;

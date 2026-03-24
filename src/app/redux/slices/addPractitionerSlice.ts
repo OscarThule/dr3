@@ -1,36 +1,23 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-interface AddPractitionerState {
-  loading: boolean;
-  error: string | null;
-  success: string | null;
+// ==============================================
+// Types
+// ==============================================
+
+// Working hours for a single day
+export interface WorkingHoursDay {
+ 
+  enabled: boolean | undefined;
+  day: string;          // e.g., "monday", "tuesday"
+  start: string;        // e.g., "09:00"
+  end: string;          // e.g., "17:00"
+  breaks?: Array<{
+    start: string;
+    end: string;
+    reason?: string;
+  }>;
 }
-
-const initialState: AddPractitionerState = {
-  loading: false,
-  error: null,
-  success: null
-};
-
-// Create axios instance with auth interceptor
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://dmrs.onrender.com',
-});
-
-// Add auth token to requests
-api.interceptors.request.use(
-  (config) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 // Interface matching your backend Practitioner model
 export interface NewPractitionerData {
@@ -49,7 +36,7 @@ export interface NewPractitionerData {
   isTemporary: boolean;
   maxPatientsPerSlot: number;
   notes?: string;
-  defaultWorkingHours?: any[];
+  defaultWorkingHours?: WorkingHoursDay[];   // ✅ Replaced any[] with proper type
   hourlyRate?: number;
   temporaryPeriod?: {
     start: string;
@@ -57,28 +44,70 @@ export interface NewPractitionerData {
   };
 }
 
-// Add practitioner thunk
+// State interface
+interface AddPractitionerState {
+  loading: boolean;
+  error: string | null;
+  success: string | null;
+}
+
+// ==============================================
+// Initial State
+// ==============================================
+const initialState: AddPractitionerState = {
+  loading: false,
+  error: null,
+  success: null
+};
+
+// ==============================================
+// Axios instance with auth interceptor
+// ==============================================
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://dmrs.onrender.com',
+});
+
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// ==============================================
+// Thunk
+// ==============================================
 export const addPractitioner = createAsyncThunk(
   'addPractitioner/addPractitioner',
   async (practitionerData: NewPractitionerData, { rejectWithValue }) => {
     try {
       console.log('Sending practitioner data:', practitionerData);
-
       const response = await api.post('/api/practitioners', practitionerData);
-      
       console.log('Practitioner created successfully:', response.data);
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {   // ✅ Replaced any with unknown
       console.error('Error creating practitioner:', error);
       
-      if (error.response?.data?.message) {
+      if (axios.isAxiosError(error) && error.response?.data?.message) {
         return rejectWithValue(error.response.data.message);
       }
-      return rejectWithValue(error.message || 'Failed to add practitioner');
+      if (error instanceof Error) {
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('Failed to add practitioner');
     }
   }
 );
 
+// ==============================================
+// Slice
+// ==============================================
 const addPractitionerSlice = createSlice({
   name: 'addPractitioner',
   initialState,

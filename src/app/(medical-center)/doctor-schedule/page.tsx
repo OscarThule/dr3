@@ -4,14 +4,14 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppDispatch, useAppSelector } from '@/app/redux/lib/hooks';
-import { 
-  fetchDoctorSchedule, 
+import {
+  fetchDoctorSchedule,
   clearDoctorSchedule,
   fetchDoctorAppointments,
-  DoctorPersonalSchedule, 
-  DoctorDaySchedule, 
-  DoctorSlot, 
-  DoctorAppointment 
+  DoctorPersonalSchedule,
+  DoctorDaySchedule,
+  DoctorSlot,
+  DoctorAppointment
 } from '@/app/redux/slices/DoctorSchedule';
 import { logoutPractitioner } from '@/app/redux/slices/doctorLogin';
 
@@ -22,19 +22,21 @@ interface WeekGroup {
   days: DoctorDaySchedule[];
 }
 
+interface Session {
+  _id: string;
+  name?: string;
+  medical_center_ids?: string[];
+  [key: string]: unknown;
+}
+
 interface AuthState {
   token: string | null;
-  session: {
-    _id: string;
-    name?: string;
-    medical_center_ids?: string[];
-    [key: string]: any;
-  } | null;
+  session: Session | null;
   loading: boolean;
   user?: {
     _id: string;
     name?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -55,7 +57,7 @@ interface PatientInfo {
   lastName?: string;
   email?: string;
   phone?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface AppointmentDisplay {
@@ -76,14 +78,13 @@ interface AppointmentDisplay {
 export default function DoctorSchedulePage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const [currentDate] = useState(new Date());
   const [activeWeek, setActiveWeek] = useState(0);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'week' | 'day' | 'list'>('week');
   const [selectedSlot, setSelectedSlot] = useState<DoctorSlot | null>(null);
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
-  
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const dayScrollRef = useRef<HTMLDivElement>(null);
   const appointmentModalRef = useRef<HTMLDivElement>(null);
@@ -91,14 +92,14 @@ export default function DoctorSchedulePage() {
 
   // Auth state
   const { session, token, loading: authLoading } = useAppSelector((s: RootState) => s.auth);
-  
+
   // Doctor schedule state
-  const { 
-    data: doctorSchedule, 
+  const {
+    data: doctorSchedule,
     appointments,
-    loadingSchedule, 
-    loadingAppointments, 
-    error: scheduleError 
+    loadingSchedule,
+    loadingAppointments,
+    error: scheduleError
   } = useAppSelector((s: RootState) => s.doctorSchedule);
 
   // Combined loading state
@@ -188,9 +189,9 @@ export default function DoctorSchedulePage() {
 
   // Calculate statistics and filtered weeks
   const { filteredWeeks, stats, processedAppointments } = useMemo(() => {
-    const defaultStats = { 
-      totalSlots: 0, 
-      totalDays: 0, 
+    const defaultStats = {
+      totalSlots: 0,
+      totalDays: 0,
       upcomingSlots: 0,
       todaySlots: 0,
       peakHourSlots: 0,
@@ -199,8 +200,8 @@ export default function DoctorSchedulePage() {
     };
 
     if (!doctorSchedule?.dailySchedules) {
-      return { 
-        filteredWeeks: [] as WeekGroup[], 
+      return {
+        filteredWeeks: [] as WeekGroup[],
         stats: defaultStats,
         processedAppointments: [] as AppointmentDisplay[]
       };
@@ -219,7 +220,7 @@ export default function DoctorSchedulePage() {
       const dayDate = new Date(day.date);
       const isToday = toISODate(dayDate) === toISODate(today);
       const isPast = dayDate < today && !isToday;
-      
+
       // Count slots and statistics
       day.timeSlots.forEach(slot => {
         totalSlots++;
@@ -228,7 +229,7 @@ export default function DoctorSchedulePage() {
           if (slot.isPeakHour) peakHourSlots++;
           if (slot.availableCapacity > 0) availableSlots++;
         }
-        
+
         // Count appointments from slot
         if (slot.appointments) {
           totalAppointments += slot.appointments.length;
@@ -318,7 +319,7 @@ export default function DoctorSchedulePage() {
   useEffect(() => {
     if (filteredWeeks.length > 0 && scrollContainerRef.current) {
       setTimeout(() => {
-        const todayIndex = filteredWeeks.findIndex(week => 
+        const todayIndex = filteredWeeks.findIndex(week =>
           week.days.some(day => toISODate(new Date(day.date)) === toISODate(new Date()))
         );
         if (todayIndex !== -1) {
@@ -350,7 +351,7 @@ export default function DoctorSchedulePage() {
     setIsScrolling(true);
     const scrollAmount = 300;
     const currentScroll = dayScrollRef.current.scrollLeft;
-    
+
     if (direction === 'left') {
       dayScrollRef.current.scrollTo({
         left: currentScroll - scrollAmount,
@@ -530,7 +531,7 @@ export default function DoctorSchedulePage() {
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Schedule Error</h2>
             <p className="text-gray-600 mb-2">{scheduleError}</p>
-            <p className="text-sm text-gray-500 mb-6">We couldn't load your schedule</p>
+            <p className="text-sm text-gray-500 mb-6">We couldn&apos;t load your schedule</p>
             <div className="space-y-3">
               <button
                 onClick={handleRetry}
@@ -572,14 +573,14 @@ export default function DoctorSchedulePage() {
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               {doctorSchedule?.doctorInfo?.specialization && (
                 <span className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-blue-100 to-blue-50 text-blue-700 border border-blue-200">
                   {doctorSchedule.doctorInfo.specialization}
                 </span>
               )}
-              
+
               <button
                 onClick={handleRetry}
                 className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
@@ -589,7 +590,7 @@ export default function DoctorSchedulePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </button>
-              
+
               <button
                 onClick={handleLogout}
                 className="flex items-center space-x-2 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2.5 rounded-xl font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200"
@@ -617,7 +618,7 @@ export default function DoctorSchedulePage() {
                 { label: 'Available', value: stats.availableSlots, color: 'from-green-50 to-green-100/50', border: 'border-green-100', text: 'text-green-700' },
                 { label: 'Appointments', value: stats.totalAppointments, color: 'from-gray-50 to-gray-100/50', border: 'border-gray-100', text: 'text-gray-700' },
               ].map((stat, index) => (
-                <div 
+                <div
                   key={index}
                   className={`bg-gradient-to-br ${stat.color} p-3 rounded-xl border ${stat.border} transition-all duration-200 hover:scale-105 cursor-default`}
                 >
@@ -665,7 +666,7 @@ export default function DoctorSchedulePage() {
               List View
             </button>
           </div>
-          
+
           {/* Upcoming Appointments Count */}
           {processedAppointments.length > 0 && (
             <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-xl border border-blue-200">
@@ -716,23 +717,23 @@ export default function DoctorSchedulePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              
+
               <div className="text-center">
                 <h3 className="text-lg font-semibold text-gray-900">
                   Week {activeWeek + 1} of {filteredWeeks.length}
                 </h3>
                 <p className="text-sm text-gray-600">
-                  {new Date(filteredWeeks[activeWeek].weekStart).toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })} - {new Date(filteredWeeks[activeWeek].weekEnd).toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    day: 'numeric', 
-                    year: 'numeric' 
+                  {new Date(filteredWeeks[activeWeek].weekStart).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric'
+                  })} - {new Date(filteredWeeks[activeWeek].weekEnd).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
                   })}
                 </p>
               </div>
-              
+
               <button
                 onClick={() => handleWeekScroll('next')}
                 disabled={activeWeek === filteredWeeks.length - 1}
@@ -755,8 +756,8 @@ export default function DoctorSchedulePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              
-              <div 
+
+              <div
                 className="overflow-x-auto pb-6 -mx-2 px-2 custom-scrollbar-horizontal"
                 ref={dayScrollRef}
               >
@@ -765,9 +766,9 @@ export default function DoctorSchedulePage() {
                     const dayDate = new Date(day.date);
                     const isToday = toISODate(dayDate) === toISODate(new Date());
                     const totalSlots = day.timeSlots.length;
-                    const dayAppointments = day.timeSlots.reduce((acc, slot) => 
+                    const dayAppointments = day.timeSlots.reduce((acc, slot) =>
                       acc + (slot.appointments?.length || 0), 0);
-                    
+
                     return (
                       <div
                         key={day.date}
@@ -793,14 +794,14 @@ export default function DoctorSchedulePage() {
                             )}
                           </div>
                         </div>
-                        
+
                         {totalSlots > 0 ? (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <span className="text-sm font-medium text-gray-700">Appointments</span>
                               <span className="text-sm font-bold text-gray-900">{dayAppointments}</span>
                             </div>
-                            
+
                             <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                               {day.timeSlots.slice(0, 4).map((slot) => {
                                 const doctorAssignment = slot.assignedDoctors?.[0];
@@ -808,7 +809,7 @@ export default function DoctorSchedulePage() {
                                 const maxPatients = doctorAssignment?.maxPatients || slot.capacity || 1;
                                 const fillPercentage = Math.min((patientCount / maxPatients) * 100, 100);
                                 const slotAppointments = slot.appointments || [];
-                                
+
                                 return (
                                   <div
                                     key={slot.id}
@@ -829,7 +830,7 @@ export default function DoctorSchedulePage() {
                                           <span className="text-xs bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 px-2 py-0.5 rounded border border-yellow-200">Peak</span>
                                         )}
                                         <span className={`text-xs px-2 py-0.5 rounded border ${
-                                          slot.consultationType === 'video' 
+                                          slot.consultationType === 'video'
                                             ? 'bg-gradient-to-r from-purple-100 to-purple-50 text-purple-800 border-purple-200'
                                             : 'bg-gradient-to-r from-green-100 to-green-50 text-green-800 border-green-200'
                                         }`}>
@@ -842,14 +843,14 @@ export default function DoctorSchedulePage() {
                                         )}
                                       </div>
                                     </div>
-                                    
+
                                     <div className="mb-2">
                                       <div className="flex justify-between text-xs text-gray-600 mb-1">
                                         <span>{patientCount}/{maxPatients} patients</span>
                                         <span>{slot.duration}min</span>
                                       </div>
                                       <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                                        <div 
+                                        <div
                                           className={`h-1.5 rounded-full transition-all duration-300 ${
                                             fillPercentage >= 80 ? 'bg-gradient-to-r from-red-500 to-red-600' :
                                             fillPercentage >= 50 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
@@ -859,7 +860,7 @@ export default function DoctorSchedulePage() {
                                         ></div>
                                       </div>
                                     </div>
-                                    
+
                                     {/* Appointment preview */}
                                     {slotAppointments.length > 0 && (
                                       <div className="mt-2">
@@ -893,7 +894,7 @@ export default function DoctorSchedulePage() {
                                 );
                               })}
                             </div>
-                            
+
                             {totalSlots > 4 && (
                               <div className="pt-2 border-t border-gray-100">
                                 <p className="text-sm text-gray-500 text-center">
@@ -912,7 +913,7 @@ export default function DoctorSchedulePage() {
                   })}
                 </div>
               </div>
-              
+
               <button
                 onClick={() => handleScroll('right')}
                 disabled={isScrolling}
@@ -923,7 +924,7 @@ export default function DoctorSchedulePage() {
                 </svg>
               </button>
             </div>
-            
+
             {/* Scroll Indicator */}
             <div className="flex justify-center space-x-2">
               {filteredWeeks.map((_, index) => (
@@ -947,10 +948,10 @@ export default function DoctorSchedulePage() {
                   {getDayName(new Date(selectedDay))}
                 </h3>
                 <p className="text-gray-600">
-                  {new Date(selectedDay).toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    day: 'numeric', 
-                    year: 'numeric' 
+                  {new Date(selectedDay).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
                   })}
                 </p>
               </div>
@@ -963,7 +964,7 @@ export default function DoctorSchedulePage() {
                 </button>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {getTimeSlotsForSelectedDay.map((slot) => {
                 const doctorAssignment = slot.assignedDoctors?.[0];
@@ -971,7 +972,7 @@ export default function DoctorSchedulePage() {
                 const maxPatients = doctorAssignment?.maxPatients || slot.capacity || 1;
                 const fillPercentage = Math.min((patientCount / maxPatients) * 100, 100);
                 const slotAppointments = slot.appointments || [];
-                
+
                 return (
                   <div
                     key={slot.id}
@@ -992,7 +993,7 @@ export default function DoctorSchedulePage() {
                             <span className="text-xs bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 px-2 py-1 rounded-full border border-yellow-200">Peak Hour</span>
                           )}
                           <span className={`text-xs px-2 py-1 rounded-full border ${
-                            slot.consultationType === 'video' 
+                            slot.consultationType === 'video'
                               ? 'bg-gradient-to-r from-purple-100 to-purple-50 text-purple-800 border-purple-200'
                               : slot.consultationType === 'in-person'
                               ? 'bg-gradient-to-r from-green-100 to-green-50 text-green-800 border-green-200'
@@ -1008,15 +1009,15 @@ export default function DoctorSchedulePage() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700">Patient Capacity</span>
                         <span className="text-sm font-bold text-gray-900">{patientCount}/{maxPatients}</span>
                       </div>
-                      
+
                       <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div 
+                        <div
                           className={`h-2 rounded-full transition-all duration-300 ${
                             fillPercentage >= 80 ? 'bg-gradient-to-r from-red-500 to-red-600' :
                             fillPercentage >= 50 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
@@ -1025,7 +1026,7 @@ export default function DoctorSchedulePage() {
                           style={{ width: `${fillPercentage}%` }}
                         ></div>
                       </div>
-                      
+
                       {slot.specialization && (
                         <div className="flex items-center space-x-2">
                           <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1034,14 +1035,14 @@ export default function DoctorSchedulePage() {
                           <span className="text-sm text-blue-600 font-medium truncate">{slot.specialization}</span>
                         </div>
                       )}
-                      
+
                       {/* Appointment preview */}
                       {slotAppointments.length > 0 && (
                         <div className="pt-2 border-t border-gray-100">
                           <p className="text-sm text-gray-700 font-medium mb-2">Appointments:</p>
                           <div className="space-y-2">
                             {processAppointments(slotAppointments).slice(0, 3).map((appointment, index) => (
-                              <div 
+                              <div
                                 key={index}
                                 className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
                                 onClick={() => handleViewAppointments(slot)}
@@ -1071,7 +1072,7 @@ export default function DoctorSchedulePage() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="flex flex-col sm:flex-row gap-2 mt-4">
                         <button
                           onClick={() => handleViewAppointments(slot)}
@@ -1120,17 +1121,17 @@ export default function DoctorSchedulePage() {
                         const patientCount = doctorAssignment?.currentPatients || 0;
                         const maxPatients = doctorAssignment?.maxPatients || slot.capacity || 1;
                         const slotAppointments = slot.appointments || [];
-                        
+
                         return (
-                          <tr 
-                            key={slot.id} 
+                          <tr
+                            key={slot.id}
                             className="hover:bg-gray-50 transition-colors"
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
-                                {new Date(day.date).toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric' 
+                                {new Date(day.date).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric'
                                 })}
                               </div>
                               <div className="text-sm text-gray-500">
@@ -1140,7 +1141,7 @@ export default function DoctorSchedulePage() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center space-x-2">
                                 <span className={`text-xs px-2 py-1 rounded-full border ${
-                                  slot.consultationType === 'video' 
+                                  slot.consultationType === 'video'
                                     ? 'bg-gradient-to-r from-purple-100 to-purple-50 text-purple-800 border-purple-200'
                                     : 'bg-gradient-to-r from-green-100 to-green-50 text-green-800 border-green-200'
                                 }`}>
@@ -1154,7 +1155,7 @@ export default function DoctorSchedulePage() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">{patientCount}/{maxPatients}</div>
                               <div className="w-32 bg-gray-200 rounded-full h-1.5">
-                                <div 
+                                <div
                                   className={`h-1.5 rounded-full ${
                                     (patientCount / maxPatients) >= 0.8 ? 'bg-gradient-to-r from-red-500 to-red-600' :
                                     (patientCount / maxPatients) >= 0.5 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600' :
@@ -1213,11 +1214,11 @@ export default function DoctorSchedulePage() {
         {/* Footer Note */}
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-500">
-            Schedule last updated: {new Date().toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            Schedule last updated: {new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </p>
           <p className="text-xs text-gray-400 mt-1">
@@ -1229,7 +1230,7 @@ export default function DoctorSchedulePage() {
       {/* Appointment Details Modal - COMPLETELY REDESIGNED */}
       {showAppointmentModal && selectedSlot && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div 
+          <div
             className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col"
             ref={appointmentModalRef}
           >
@@ -1243,7 +1244,7 @@ export default function DoctorSchedulePage() {
                       Appointment Details
                     </h3>
                   </div>
-                  
+
                   <div className="flex items-center gap-3 mt-2 flex-wrap">
                     <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-blue-100/50 px-3 py-1.5 rounded-lg border border-blue-200">
                       <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1254,7 +1255,7 @@ export default function DoctorSchedulePage() {
                       </span>
                       <span className="text-sm text-blue-600">• {selectedSlot.duration} min</span>
                     </div>
-                    
+
                     <div className="flex items-center gap-2 bg-gradient-to-r from-gray-50 to-gray-100/50 px-3 py-1.5 rounded-lg border border-gray-200">
                       <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -1265,7 +1266,7 @@ export default function DoctorSchedulePage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3">
                   <button
                     onClick={handleCloseModal}
@@ -1279,7 +1280,7 @@ export default function DoctorSchedulePage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Contact Reminder Banner */}
             <div className="bg-gradient-to-r from-blue-50 to-blue-100/80 border-b border-blue-200/50 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -1298,7 +1299,7 @@ export default function DoctorSchedulePage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Main Content Area - Scrollable */}
             <div className="flex-1 overflow-hidden">
               {/* Slot Info Panel - Fixed at top */}
@@ -1334,9 +1335,9 @@ export default function DoctorSchedulePage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Appointments Container - Scrollable */}
-              <div 
+              <div
                 ref={modalContentRef}
                 className="h-[calc(100vh-280px)] overflow-y-auto custom-scrollbar p-6"
               >
@@ -1353,7 +1354,7 @@ export default function DoctorSchedulePage() {
                         Patient Appointments ({selectedSlot.appointments?.length || 0})
                       </h4>
                     </div>
-                    
+
                     {/* Desktop Scroll Tool */}
                     <div className="hidden lg:flex items-center gap-2 text-sm text-gray-500">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1363,11 +1364,11 @@ export default function DoctorSchedulePage() {
                     </div>
                   </div>
                 </div>
-                
+
                 {selectedSlot.appointments && selectedSlot.appointments.length > 0 ? (
                   <div className="space-y-6">
                     {processAppointments(selectedSlot.appointments).map((appointment) => (
-                      <div 
+                      <div
                         key={appointment.id}
                         className="border border-gray-200 rounded-2xl bg-white hover:shadow-lg transition-all duration-300 overflow-hidden"
                       >
@@ -1389,7 +1390,7 @@ export default function DoctorSchedulePage() {
                                 </div>
                               </div>
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
                                 {getStatusIcon(appointment.status)}
@@ -1400,7 +1401,7 @@ export default function DoctorSchedulePage() {
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Patient Information Grid */}
                         <div className="p-6">
                           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1423,7 +1424,7 @@ export default function DoctorSchedulePage() {
                                       <p className="font-medium text-gray-900 break-all">{appointment.patientEmail}</p>
                                     </div>
                                   </div>
-                                  
+
                                   <div className="flex items-start gap-3">
                                     <svg className="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -1436,7 +1437,7 @@ export default function DoctorSchedulePage() {
                                 </div>
                               </div>
                             </div>
-                            
+
                             {/* Medical Information */}
                             <div className="space-y-6">
                               {(appointment.reasonForVisit || appointment.symptoms) && (
@@ -1454,7 +1455,7 @@ export default function DoctorSchedulePage() {
                                         <p className="text-gray-900">{appointment.reasonForVisit}</p>
                                       </div>
                                     )}
-                                    
+
                                     {appointment.symptoms && (
                                       <div className="bg-gradient-to-r from-red-50 to-red-100/30 p-4 rounded-lg border border-red-200">
                                         <p className="text-sm text-gray-600 mb-1">Symptoms</p>
@@ -1465,7 +1466,7 @@ export default function DoctorSchedulePage() {
                                 </div>
                               )}
                             </div>
-                            
+
                             {/* Appointment Details */}
                             <div className="space-y-6">
                               <div>
@@ -1483,7 +1484,7 @@ export default function DoctorSchedulePage() {
                                         {appointment.appointmentDuration || selectedSlot.duration} minutes
                                       </p>
                                     </div>
-                                    
+
                                     <div className="bg-gray-50 p-3 rounded-lg">
                                       <p className="text-sm text-gray-600 mb-1">Created</p>
                                       <p className="font-medium text-gray-900 text-sm">
@@ -1491,7 +1492,7 @@ export default function DoctorSchedulePage() {
                                       </p>
                                     </div>
                                   </div>
-                                  
+
                                   {appointment.medicalCenter && appointment.medicalCenter !== 'N/A' && (
                                     <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/30 p-4 rounded-lg border border-emerald-200">
                                       <div className="flex items-center gap-2 mb-2">
@@ -1505,7 +1506,7 @@ export default function DoctorSchedulePage() {
                                   )}
                                 </div>
                               </div>
-                              
+
                               {/* Contact Reminder */}
                               <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 p-4 rounded-lg border border-blue-200">
                                 <div className="flex items-start gap-3">
@@ -1527,7 +1528,7 @@ export default function DoctorSchedulePage() {
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Appointment Footer */}
                         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
                           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -1537,7 +1538,7 @@ export default function DoctorSchedulePage() {
                               </svg>
                               <span>Last updated: {formatDateTime(appointment.updatedAt)}</span>
                             </div>
-                            
+
                             <div className="flex items-center gap-3">
                               <button className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1550,7 +1551,7 @@ export default function DoctorSchedulePage() {
                         </div>
                       </div>
                     ))}
-                    
+
                     {/* Mobile Scroll Indicator */}
                     <div className="lg:hidden text-center py-6">
                       <div className="inline-flex items-center gap-2 text-gray-400">
@@ -1576,7 +1577,7 @@ export default function DoctorSchedulePage() {
                 )}
               </div>
             </div>
-            
+
             {/* Modal Footer */}
             <div className="px-6 py-4 bg-white border-t border-gray-200/60 flex-shrink-0">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -1585,12 +1586,12 @@ export default function DoctorSchedulePage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>
-                    Total Capacity: {selectedSlot.assignedDoctors?.[0]?.maxPatients || selectedSlot.capacity || 0} • 
-                    Booked: {selectedSlot.assignedDoctors?.[0]?.currentPatients || 0} • 
+                    Total Capacity: {selectedSlot.assignedDoctors?.[0]?.maxPatients || selectedSlot.capacity || 0} •
+                    Booked: {selectedSlot.assignedDoctors?.[0]?.currentPatients || 0} •
                     Available: {selectedSlot.availableCapacity}
                   </span>
                 </div>
-                
+
                 <div className="flex gap-3">
                   <button
                     onClick={handleCloseModal}
@@ -1614,55 +1615,55 @@ const customScrollbarStyles = `
     scrollbar-width: thin;
     scrollbar-color: #cbd5e0 #f1f1f1;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 4px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #cbd5e0;
     border-radius: 4px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #a0aec0;
   }
-  
+
   .custom-scrollbar-horizontal {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e0 #f1f1f1;
   }
-  
+
   .custom-scrollbar-horizontal::-webkit-scrollbar {
     height: 6px;
   }
-  
+
   .custom-scrollbar-horizontal::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
   }
-  
+
   .custom-scrollbar-horizontal::-webkit-scrollbar-thumb {
     background: #cbd5e0;
     border-radius: 3px;
   }
-  
+
   .custom-scrollbar-horizontal::-webkit-scrollbar-thumb:hover {
     background: #a0aec0;
   }
-  
+
   /* Mobile touch scrolling enhancements */
   @media (max-width: 768px) {
     .custom-scrollbar {
       -webkit-overflow-scrolling: touch;
     }
-    
+
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
     }

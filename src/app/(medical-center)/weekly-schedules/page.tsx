@@ -647,7 +647,7 @@ export default function DefaultOperationalHours() {
             <h1 className="text-4xl font-bold text-gray-900 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent">
               Default Operational Hours
             </h1>
-            <p className="text-gray-600 mt-2 text-lg">Configure and manage your medical center's default working hours</p>
+            <p className="text-gray-600 mt-2 text-lg">Configure and manage your medical center  default working hours</p>
             
             {defaultOperationalHours ? (
               <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">

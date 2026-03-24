@@ -5,29 +5,29 @@ import axios from 'axios';
 
 // ============ AUTH UTILS ============
 const getAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null
-  
+  if (typeof window === 'undefined') return null;
+
   return (
     localStorage.getItem('patientToken') ||
     sessionStorage.getItem('patientToken') ||
     localStorage.getItem('token') ||
     sessionStorage.getItem('token')
-  )
-}
+  );
+};
 
 const getPatientFromStorage = () => {
-  if (typeof window === 'undefined') return null
-   
-  const storedPatient = localStorage.getItem('patientInfo') || 
-                       sessionStorage.getItem('patientInfo')
-  if (!storedPatient) return null
-  
+  if (typeof window === 'undefined') return null;
+
+  const storedPatient =
+    localStorage.getItem('patientInfo') || sessionStorage.getItem('patientInfo');
+  if (!storedPatient) return null;
+
   try {
-    return JSON.parse(storedPatient)
+    return JSON.parse(storedPatient);
   } catch {
-    return null
+    return null;
   }
-}
+};
 
 // ============ TYPES ============
 interface Address {
@@ -74,15 +74,15 @@ interface MedicalCenter {
   phone: string;
   address: Address;
   practitioners: Practitioner[];
-  settings: any;
+  settings: unknown; // Replace with proper type if known
   statistics: Statistics;
-  billing: any;
+  billing: unknown; // Replace with proper type if known
   theme_colors?: { primary: string; secondary: string };
   verification_status: string;
   is_verified: boolean;
   is_active: boolean;
   parent_center_id: string | null;
-  branches: any[];
+  branches: unknown[]; // Replace with proper type if known
   created_at: string;
   updated_at: string;
   __v: number;
@@ -107,8 +107,8 @@ interface DailySchedule {
   dayName: string;
   isWorking: boolean;
   timeSlots: TimeSlot[];
-  lunchBreaks: any[];
-  sessions: { morning: any; afternoon: any; night: any };
+  lunchBreaks: unknown[]; // Replace with proper type if known
+  sessions: { morning: unknown; afternoon: unknown; night: unknown };
 }
 
 interface ScheduleData {
@@ -118,16 +118,16 @@ interface ScheduleData {
   windowStart: string;
   windowEnd: string;
   dailySchedules: DailySchedule[];
-  historicalDays: any[];
+  historicalDays: unknown[]; // Replace with proper type if known
   assignedDoctors: string[];
   isActive: boolean;
-  defaultDoctors: any[];
+  defaultDoctors: unknown[]; // Replace with proper type if known
   slotDuration: number;
   bufferTime: number;
   maxDoctorsPerSlot: number;
   createdBy: string;
   updatedBy: string;
-  lateArrivals: any[];
+  lateArrivals: unknown[]; // Replace with proper type if known
   createdAt: string;
   updatedAt: string;
   __v: number;
@@ -207,15 +207,19 @@ interface Appointment {
   symptoms: string;
   consultation_type: string;
   status:
-  | 'pending'
-  | 'confirmed'
-  | 'cancelled'
-  | 'completed'
-  | 'no-show'
-  | 'rescheduled';
-
-  payment_status: 'pending' | 'success' | 'failed' | 'refunded' |'paid'| 'none';
-
+    | 'pending'
+    | 'confirmed'
+    | 'cancelled'
+    | 'completed'
+    | 'no-show'
+    | 'rescheduled';
+  payment_status:
+    | 'pending'
+    | 'success'
+    | 'failed'
+    | 'refunded'
+    | 'paid'
+    | 'none';
   payment_reference?: string;
   created_at: string;
   updated_at: string;
@@ -238,16 +242,21 @@ interface BookingState {
   patientInfo: BookingPatientInfo | null;
   doctorAvailability: DoctorAvailability[];
   viewMode: 'slots' | 'doctors';
-  
+
   // NEW: Added booking status and appointments array
   bookingStatus: 'idle' | 'pending' | 'paid' | 'confirmed' | 'failed';
   appointments: Appointment[];
 }
 
+// Define the root state shape (only the booking slice is needed for this file)
+interface RootState {
+  booking: BookingState;
+}
+
 // ============ INITIAL STATE ============
 const initialState: BookingState = {
   medicalCenter: null,
-  
+
   schedule: null,
   loading: false,
   scheduleLoading: true,
@@ -264,7 +273,7 @@ const initialState: BookingState = {
     symptoms: '',
     preferredSpecialization: '',
     consultationType: 'face-to-face',
-    step: 'select-doctor'
+    step: 'select-doctor',
   },
   availableDoctors: [],
   bookingLoading: false,
@@ -273,12 +282,11 @@ const initialState: BookingState = {
   patientInfo: null,
   doctorAvailability: [],
   viewMode: 'slots',
-  
+
   // NEW: Initial state for booking status and appointments
   bookingStatus: 'idle',
   appointments: [],
-  centerAppointments: []
-
+  centerAppointments: [],
 };
 
 // ============ UTILITY FUNCTIONS ============
@@ -294,26 +302,33 @@ const getSlotStatus = (slot: TimeSlot) => {
   if (!slot.assignedDoctors || slot.assignedDoctors.length === 0) {
     return { status: 'no-doctors', availableDoctors: 0, bookedDoctors: 0 };
   }
-  
+
   const availableDoctors = slot.assignedDoctors.filter(checkDoctorAvailability).length;
-  const bookedDoctors = slot.assignedDoctors.filter(doc => doc.isBooked === true).length;
-  
+  const bookedDoctors = slot.assignedDoctors.filter((doc) => doc.isBooked === true).length;
+
   return {
     status: availableDoctors > 0 ? 'available' : 'all-booked',
     availableDoctors,
-    bookedDoctors
+    bookedDoctors,
   };
 };
 
 const convertToBookingPatient = (patient: PatientInfo | null): BookingPatientInfo | null => {
   if (!patient) return null;
-  
+
   return {
     _id: patient._id,
     email: patient.email,
     name: `${patient.firstName} ${patient.lastName}`,
-    phone: patient.phone
+    phone: patient.phone,
   };
+};
+
+// Helper to normalize date to YYYY-MM-DD
+const normalizeDate = (date: string | Date): string => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().split('T')[0];
 };
 
 // ============ THUNKS ============
@@ -325,7 +340,7 @@ export const fetchScheduleWithAvailabilityThunk = createAsyncThunk(
       const token = getAuthToken();
 
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -339,7 +354,7 @@ export const fetchScheduleWithAvailabilityThunk = createAsyncThunk(
         throw new Error(res.data?.message || 'Invalid schedule data');
       }
 
-      const scheduleData = res.data.data;
+      const scheduleData = res.data.data as ScheduleData;
 
       // 2) Fetch appointments for this center
       if (token) {
@@ -347,78 +362,69 @@ export const fetchScheduleWithAvailabilityThunk = createAsyncThunk(
       }
 
       // 3) Get fresh appointments from state
-      const appointments = (getState() as any).booking.centerAppointments || [];
+      const state = getState() as RootState;
+      const appointments = state.booking.centerAppointments || [];
 
       // 4) Merge schedule with real availability
-   const normalizeDate = (d: any) => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x.toISOString().split('T')[0];
-};
-
-const processedSchedule = {
-  ...scheduleData,
-  dailySchedules: scheduleData.dailySchedules.map((day: any) => {
-    const dayKey = normalizeDate(day.date);
-
-    return {
-      ...day,
-      timeSlots: day.timeSlots.map((slot: any) => {
-        const slotId = String(slot.id);
-
-        const slotBookings = appointments.filter((appt: any) => {
-          const apptDay = normalizeDate(appt.date);
-
-          return (
-            apptDay === dayKey &&
-            String(appt.slot_id) === slotId &&
-            (appt.status === 'pending' || appt.status === 'confirmed')
-          );
-        });
-
-        const processedDoctors = (slot.assignedDoctors || []).map((doctor: any) => {
-          const doctorId = String(doctor.doctorId);
-
-          const doctorBookings = slotBookings.filter(
-            (appt: any) => String(appt.practitioner_id) === doctorId
-          );
-
-          const isBooked = doctorBookings.length > 0;
+      const processedSchedule = {
+        ...scheduleData,
+        dailySchedules: scheduleData.dailySchedules.map((day: DailySchedule) => {
+          const dayKey = normalizeDate(day.date);
 
           return {
-            ...doctor,
-            currentPatients: doctorBookings.length,
-            isBooked,
-            isAvailable: !isBooked
+            ...day,
+            timeSlots: day.timeSlots.map((slot: TimeSlot) => {
+              const slotId = String(slot.id);
+
+              const slotBookings = appointments.filter((appt: Appointment) => {
+                const apptDay = normalizeDate(appt.date);
+                return (
+                  apptDay === dayKey &&
+                  String(appt.slot_id) === slotId &&
+                  (appt.status === 'pending' || appt.status === 'confirmed')
+                );
+              });
+
+              const processedDoctors = (slot.assignedDoctors || []).map((doctor: DoctorForBooking) => {
+                const doctorId = String(doctor.doctorId);
+
+                const doctorBookings = slotBookings.filter(
+                  (appt: Appointment) => String(appt.practitioner_id) === doctorId
+                );
+
+                const isBooked = doctorBookings.length > 0;
+
+                return {
+                  ...doctor,
+                  currentPatients: doctorBookings.length,
+                  isBooked,
+                  isAvailable: !isBooked,
+                };
+              });
+
+              return {
+                ...slot,
+                assignedDoctors: processedDoctors,
+                availableCapacity: processedDoctors.filter((d) => !d.isBooked).length,
+                capacity: processedDoctors.length,
+              };
+            }),
           };
-        });
-
-        return {
-          ...slot,
-          assignedDoctors: processedDoctors,
-          availableCapacity: processedDoctors.filter((d: DoctorForBooking) => !d.isBooked).length,
-          capacity: processedDoctors.length
-        };
-      })
-    };
-  })
-};
-
-
+        }),
+      };
 
       return processedSchedule;
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       return rejectWithValue({
         error:
-          err?.response?.data?.message ||
-          err?.message ||
-          'Failed to fetch schedule'
+          error?.response?.data?.message ||
+          error?.message ||
+          'Failed to fetch schedule',
       });
     }
   }
 );
-
-
 
 export const fetchCenterAppointmentsThunk = createAsyncThunk(
   'booking/fetchCenterAppointments',
@@ -427,13 +433,10 @@ export const fetchCenterAppointmentsThunk = createAsyncThunk(
       const token = getAuthToken();
       if (!token) return rejectWithValue('Login required');
 
-      const res = await axios.get(
-        'https://dmrs.onrender.com/api/bookings/all',
-        {
-          params: { medical_center_id: medicalCenterId },
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+      const res = await axios.get('https://dmrs.onrender.com/api/bookings/all', {
+        params: { medical_center_id: medicalCenterId },
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       return res.data.data || [];
     } catch {
@@ -441,7 +444,6 @@ export const fetchCenterAppointmentsThunk = createAsyncThunk(
     }
   }
 );
-
 
 // 2️⃣ FETCH PATIENT APPOINTMENTS (SYNC WITH WEBHOOK)
 export const fetchPatientAppointmentsThunk = createAsyncThunk(
@@ -451,15 +453,12 @@ export const fetchPatientAppointmentsThunk = createAsyncThunk(
       const token = getAuthToken();
       if (!token) return rejectWithValue('Login required');
 
-      const res = await axios.get(
-        'https://dmrs.onrender.com/api/bookings/patient',
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
+      const res = await axios.get('https://dmrs.onrender.com/api/bookings/patient', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       return res.data.data || [];
-    } catch (err: any) {
+    } catch {
       return rejectWithValue('Failed to load appointments');
     }
   }
@@ -468,7 +467,15 @@ export const fetchPatientAppointmentsThunk = createAsyncThunk(
 // 3️⃣ HANDLE SLOT CLICK
 export const handleSlotClickThunk = createAsyncThunk(
   'booking/handleSlotClick',
-  async ({ date, slot, medicalCenter, schedule }: any, { rejectWithValue, dispatch }) => {
+  async (
+    {
+      date,
+      slot,
+      medicalCenter,
+      schedule,
+    }: { date: string; slot: TimeSlot; medicalCenter: MedicalCenter; schedule: ScheduleData },
+    { rejectWithValue, dispatch }
+  ) => {
     if (!medicalCenter || !schedule) {
       return rejectWithValue('Missing medical center or schedule');
     }
@@ -487,7 +494,7 @@ export const handleSlotClickThunk = createAsyncThunk(
           role: doctor.role || 'Doctor',
           isAvailable: true,
           isBooked: false,
-          availableSlots: slot.availableCapacity || 1
+          availableSlots: slot.availableCapacity || 1,
         }));
 
       if (availableDoctorsInSlot.length === 0) {
@@ -496,7 +503,7 @@ export const handleSlotClickThunk = createAsyncThunk(
       }
 
       dispatch(setAvailableDoctors(availableDoctorsInSlot));
-      
+
       return {
         isOpen: true,
         medicalCenter,
@@ -508,7 +515,7 @@ export const handleSlotClickThunk = createAsyncThunk(
         symptoms: '',
         preferredSpecialization: '',
         consultationType: 'face-to-face' as const,
-        step: 'select-doctor' as const
+        step: 'select-doctor' as const,
       };
     } catch (error) {
       console.error('Error in slot click:', error);
@@ -521,7 +528,7 @@ export const handleSlotClickThunk = createAsyncThunk(
 // 4️⃣ HANDLE BOOK APPOINTMENT (CREATE + REDIRECT PAYMENT)
 export const handleBookAppointmentThunk = createAsyncThunk(
   'booking/handleBookAppointment',
-  async (localBookingModal: any, { rejectWithValue, dispatch }) => {
+  async (localBookingModal: BookingModalData, { rejectWithValue, dispatch }) => {
     try {
       const token = getAuthToken();
       if (!token) return rejectWithValue('Please login first');
@@ -534,14 +541,14 @@ export const handleBookAppointmentThunk = createAsyncThunk(
       // Build booking data
       const bookingPayload = {
         patient_id: patient._id,
-        medical_center_id: localBookingModal.medicalCenter._id,
-        schedule_id: localBookingModal.schedule._id,
+        medical_center_id: localBookingModal.medicalCenter!._id,
+        schedule_id: localBookingModal.schedule!._id,
         date: localBookingModal.date,
-        slot_id: localBookingModal.slot.id,
-        practitioner_id: localBookingModal.selectedDoctor.doctorId,
+        slot_id: localBookingModal.slot!.id,
+        practitioner_id: localBookingModal.selectedDoctor!.doctorId,
         reason_for_visit: localBookingModal.reasonForVisit,
         symptoms: localBookingModal.symptoms || '',
-        consultation_type: localBookingModal.consultationType
+        consultation_type: localBookingModal.consultationType,
       };
 
       // Create pending appointment (backend also creates payment + paystack link)
@@ -549,7 +556,7 @@ export const handleBookAppointmentThunk = createAsyncThunk(
         'https://dmrs.onrender.com/api/bookings',
         bookingPayload,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -571,17 +578,17 @@ export const handleBookAppointmentThunk = createAsyncThunk(
 
       return {
         success: true,
-        appointment
+        appointment,
       };
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
       dispatch(setBookingStatus('failed'));
       return rejectWithValue(
-        err?.response?.data?.message || 'Booking failed, please try again'
+        error?.response?.data?.message || error?.message || 'Booking failed, please try again'
       );
     }
   }
 );
-
 
 // 5️⃣ VERIFY PAYMENT AFTER PAYSTACK REDIRECT
 export const verifyPaymentThunk = createAsyncThunk(
@@ -595,18 +602,18 @@ export const verifyPaymentThunk = createAsyncThunk(
       const res = await axios.get(
         `https://dmrs.onrender.com/api/payments/verify/${reference}`,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       // After successful verification, refresh appointments
       dispatch(fetchPatientAppointmentsThunk());
-      
+
       // Start polling for webhook confirmation
       dispatch(pollForConfirmationThunk());
 
       return res.data;
-    } catch (err: any) {
+    } catch (err) {
       return rejectWithValue('Payment verification failed');
     }
   }
@@ -622,18 +629,19 @@ export const pollForConfirmationThunk = createAsyncThunk(
 
       const interval = setInterval(async () => {
         checks++;
-        
+
         // Fetch latest appointments
         await dispatch(fetchPatientAppointmentsThunk());
-        
+
         // Get current state to check if we can stop polling
-        const state = getState() as { booking: BookingState };
-        
+        const state = getState() as RootState;
+
         // Check if we have a recent confirmed appointment
-        const recentAppointment = state.booking.appointments.find(appt => 
-          appt.payment_status === 'paid' && 
-          appt.status === 'confirmed' &&
-          new Date(appt.created_at).getTime() > Date.now() - 60000 // Last minute
+        const recentAppointment = state.booking.appointments.find(
+          (appt) =>
+            appt.payment_status === 'paid' &&
+            appt.status === 'confirmed' &&
+            new Date(appt.created_at).getTime() > Date.now() - 60000 // Last minute
         );
 
         if (recentAppointment || checks >= maxChecks) {
@@ -648,10 +656,13 @@ export const pollForConfirmationThunk = createAsyncThunk(
 // 7️⃣ CHECK DOCTOR AVAILABILITY
 export const checkDoctorAvailabilityThunk = createAsyncThunk(
   'booking/checkDoctorAvailability',
-  async ({ date, slotId, doctorId }: { date: string; slotId: string; doctorId: string }, { rejectWithValue }) => {
+  async (
+    { date, slotId, doctorId }: { date: string; slotId: string; doctorId: string },
+    { rejectWithValue }
+  ) => {
     try {
       const token = getAuthToken();
-      
+
       if (!token) {
         return rejectWithValue('Authentication required');
       }
@@ -662,12 +673,12 @@ export const checkDoctorAvailabilityThunk = createAsyncThunk(
           params: {
             practitioner_id: doctorId,
             date: date,
-            slot_id: slotId
+            slot_id: slotId,
           },
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -676,9 +687,9 @@ export const checkDoctorAvailabilityThunk = createAsyncThunk(
         date,
         slotId,
         isAvailable: response.data.isAvailable,
-        existingAppointmentId: response.data.existingAppointmentId
+        existingAppointmentId: response.data.existingAppointmentId,
       };
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error checking doctor availability:', error);
       return rejectWithValue('Error checking doctor availability');
     }
@@ -717,7 +728,10 @@ const bookingSlice = createSlice({
     setSuccessMessage: (state, action: PayloadAction<string | null>) => {
       state.successMessage = action.payload;
     },
-    setSelectedDateRange: (state, action: PayloadAction<'today' | 'tomorrow' | 'week' | 'all'>) => {
+    setSelectedDateRange: (
+      state,
+      action: PayloadAction<'today' | 'tomorrow' | 'week' | 'all'>
+    ) => {
       state.selectedDateRange = action.payload;
     },
     setBookingModal: (state, action: PayloadAction<BookingModalData>) => {
@@ -735,7 +749,10 @@ const bookingSlice = createSlice({
     handleSelectDoctorThunk: (state, action: PayloadAction<DoctorForBooking>) => {
       state.bookingModal.selectedDoctor = action.payload;
       state.bookingModal.preferredSpecialization = action.payload.specialization[0] || '';
-      state.bookingModal.consultationType = action.payload.consultationType as 'face-to-face' | 'telemedicine' | 'follow-up';
+      state.bookingModal.consultationType = action.payload.consultationType as
+        | 'face-to-face'
+        | 'telemedicine'
+        | 'follow-up';
       state.bookingModal.step = 'booking-details';
     },
     handleBackToDoctorSelectionThunk: (state) => {
@@ -767,16 +784,19 @@ const bookingSlice = createSlice({
     closeBookingModal: (state) => {
       state.bookingModal.isOpen = false;
     },
-    updateAppointmentStatus: (state, action: PayloadAction<{ appointmentId: string; status: string; paymentStatus?: string }>) => {
-      const appointment = state.appointments.find(appt => appt._id === action.payload.appointmentId);
+    updateAppointmentStatus: (
+      state,
+      action: PayloadAction<{ appointmentId: string; status: string; paymentStatus?: string }>
+    ) => {
+      const appointment = state.appointments.find((appt) => appt._id === action.payload.appointmentId);
       if (appointment) {
-        appointment.status = action.payload.status as any;
+        appointment.status = action.payload.status as Appointment['status'];
         if (action.payload.paymentStatus) {
-          appointment.payment_status = action.payload.paymentStatus as any;
+          appointment.payment_status = action.payload.paymentStatus as Appointment['payment_status'];
         }
         appointment.updated_at = new Date().toISOString();
       }
-    }
+    },
   },
   extraReducers: (builder) => {
     // Fetch Schedule
@@ -786,18 +806,19 @@ const bookingSlice = createSlice({
     });
 
     builder.addCase(fetchCenterAppointmentsThunk.fulfilled, (state, action) => {
-  state.centerAppointments = action.payload || [];
-});
+      state.centerAppointments = action.payload || [];
+    });
 
-    
     builder.addCase(fetchScheduleWithAvailabilityThunk.fulfilled, (state, action) => {
       state.schedule = action.payload;
       state.scheduleLoading = false;
       state.error = null;
     });
-    
-    builder.addCase(fetchScheduleWithAvailabilityThunk.rejected, (state, action: any) => {
-      state.error = action.payload?.error || 'Failed to fetch schedule';
+
+    builder.addCase(fetchScheduleWithAvailabilityThunk.rejected, (state, action) => {
+      // action.payload is the value returned from rejectWithValue
+      const payload = action.payload as { error?: string } | undefined;
+      state.error = payload?.error || 'Failed to fetch schedule';
       state.scheduleLoading = false;
     });
 
@@ -814,13 +835,13 @@ const bookingSlice = createSlice({
       state.bookingError = null;
       state.bookingStatus = 'pending';
     });
-    
+
     builder.addCase(handleBookAppointmentThunk.fulfilled, (state) => {
       state.bookingLoading = false;
       state.bookingError = null;
       // Status remains pending until payment verification
     });
-    
+
     builder.addCase(handleBookAppointmentThunk.rejected, (state, action) => {
       state.bookingError = action.payload as string;
       state.bookingLoading = false;
@@ -830,12 +851,12 @@ const bookingSlice = createSlice({
     // Fetch Patient Appointments
     builder.addCase(fetchPatientAppointmentsThunk.fulfilled, (state, action) => {
       state.appointments = action.payload || [];
-      
+
       // Update booking status based on latest appointments
-      const recentAppointment = action.payload.find((appt: Appointment)=> 
-        new Date(appt.created_at).getTime() > Date.now() - 300000 // Last 5 minutes
+      const recentAppointment = (action.payload as Appointment[]).find(
+        (appt) => new Date(appt.created_at).getTime() > Date.now() - 300000 // Last 5 minutes
       );
-      
+
       if (recentAppointment) {
         if (recentAppointment.payment_status === 'paid' && recentAppointment.status === 'confirmed') {
           state.bookingStatus = 'confirmed';
@@ -846,7 +867,7 @@ const bookingSlice = createSlice({
         }
       }
     });
-    
+
     builder.addCase(fetchPatientAppointmentsThunk.rejected, (state) => {
       // Keep existing appointments on error
     });
@@ -856,7 +877,7 @@ const bookingSlice = createSlice({
       state.bookingStatus = 'pending';
       state.bookingLoading = true;
     });
-    
+
     builder.addCase(verifyPaymentThunk.fulfilled, (state, action) => {
       state.bookingLoading = false;
       if (action.payload.status === 'success') {
@@ -867,7 +888,7 @@ const bookingSlice = createSlice({
         state.bookingError = 'Payment verification failed';
       }
     });
-    
+
     builder.addCase(verifyPaymentThunk.rejected, (state) => {
       state.bookingStatus = 'failed';
       state.bookingLoading = false;
@@ -878,12 +899,12 @@ const bookingSlice = createSlice({
     builder.addCase(pollForConfirmationThunk.pending, (state) => {
       state.bookingLoading = true;
     });
-    
+
     builder.addCase(pollForConfirmationThunk.fulfilled, (state) => {
       state.bookingLoading = false;
       // Status will be updated by fetchPatientAppointmentsThunk
     });
-    
+
     builder.addCase(pollForConfirmationThunk.rejected, (state) => {
       state.bookingLoading = false;
     });
@@ -892,35 +913,35 @@ const bookingSlice = createSlice({
     builder.addCase(checkDoctorAvailabilityThunk.fulfilled, (state, action) => {
       // Update doctor availability in schedule if needed
       if (state.schedule) {
-        state.schedule.dailySchedules = state.schedule.dailySchedules.map(day => {
+        state.schedule.dailySchedules = state.schedule.dailySchedules.map((day) => {
           if (day.date === action.payload.date) {
             return {
               ...day,
-              timeSlots: day.timeSlots.map(slot => {
+              timeSlots: day.timeSlots.map((slot) => {
                 if (slot.id === action.payload.slotId) {
                   return {
                     ...slot,
-                    assignedDoctors: slot.assignedDoctors.map(doctor => {
+                    assignedDoctors: slot.assignedDoctors.map((doctor) => {
                       if (doctor.doctorId === action.payload.doctorId) {
                         return {
                           ...doctor,
                           isAvailable: action.payload.isAvailable,
-                          isBooked: !action.payload.isAvailable
+                          isBooked: !action.payload.isAvailable,
                         };
                       }
                       return doctor;
-                    })
+                    }),
                   };
                 }
                 return slot;
-              })
+              }),
             };
           }
           return day;
         });
       }
     });
-  }
+  },
 });
 
 // ============ EXPORTS ============
@@ -948,7 +969,7 @@ export const {
   resetBookingState,
   syncPatientInfoFromStorage,
   closeBookingModal,
-  updateAppointmentStatus
+  updateAppointmentStatus,
 } = bookingSlice.actions;
 
 export default bookingSlice.reducer;

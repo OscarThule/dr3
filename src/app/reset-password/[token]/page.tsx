@@ -1,34 +1,56 @@
 'use client';
+
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+
+interface ResetPasswordResponse {
+  message: string;
+  success?: boolean;
+}
 
 export default function ResetPasswordPage() {
-  const { token } = useParams();
+  const params = useParams();
+  // token can be string or string[] (when dynamic route with multiple segments)
+  const token = Array.isArray(params.token) ? params.token[0] : params.token;
+  
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log("🔐 TOKEN FROM URL:", token);
+    console.log('🔐 TOKEN FROM URL:', token);
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("📤 Sending token to backend:", token);
-    console.log("📦 Sending password:", password);
+    
+    if (!token) {
+      setMessage('Invalid or missing reset token');
+      return;
+    }
+
+    console.log('📤 Sending token to backend:', token);
+    console.log('📦 Sending password:', password);
 
     try {
       setLoading(true);
-      const res = await axios.put(
+      const res = await axios.put<ResetPasswordResponse>(
         `https://dmrs.onrender.com/api/medical-centers/reset-password/${token}`,
         { password }
       );
-      console.log("✅ Backend response:", res.data);
+      console.log('✅ Backend response:', res.data);
       setMessage(res.data.message || 'Password reset successful');
-    } catch (err: any) {
-      console.log("❌ Backend error:", err.response?.data || err.message);
-      setMessage(err.response?.data?.message || 'Reset failed');
+    } catch (err: unknown) {
+      let errorMessage = 'Reset failed';
+      if (axios.isAxiosError(err)) {
+        const axiosError = err as AxiosError<{ message?: string }>;
+        errorMessage = axiosError.response?.data?.message || axiosError.message || 'Reset failed';
+        console.log('❌ Backend error:', axiosError.response?.data || axiosError.message);
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setMessage(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -45,7 +67,7 @@ export default function ResetPasswordPage() {
         <input
           type="password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
           placeholder="New password"
           className="w-full border border-gray-400 p-2 mb-3 text-black bg-white"
           required
