@@ -197,7 +197,8 @@ export default function PatientAppointmentsPage() {
         return;
       }
 
-      let allAppointments: Appointment[] = response.data.data || [];
+      // FIX: Use const because allAppointments is never reassigned
+      const allAppointments: Appointment[] = response.data.data || [];
       const now = new Date();
 
       let filteredAppointments: Appointment[] = [];
