@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, JSX } from 'react';
+import { Suspense, useState, useEffect, useCallback, JSX } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import * as bookingActions from '@/app/reduxPatient/slices/patient/bookingSlice';
@@ -760,9 +760,9 @@ const BookingModal = ({
   );
 };
 
-// ================= MAIN PAGE =================
+// ================= MAIN PAGE CONTENT (Client Component) =================
 
-export default function BookingPage() {
+function BookingPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const medicalCenterId = searchParams.get('medicalCenterId');
@@ -1136,5 +1136,28 @@ export default function BookingPage() {
         />
       )}
     </GradientBackground>
+  );
+}
+
+// ================= FALLBACK COMPONENT =================
+
+function BookingPageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading booking...</p>
+      </div>
+    </div>
+  );
+}
+
+// ================= EXPORTED PAGE WITH SUSPENSE =================
+
+export default function BookingPage() {
+  return (
+    <Suspense fallback={<BookingPageFallback />}>
+      <BookingPageClient />
+    </Suspense>
   );
 }
