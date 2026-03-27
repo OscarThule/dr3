@@ -20,8 +20,8 @@ function PaymentProcessingContent() {
       const API_BASE_URL =
         process.env.NEXT_PUBLIC_API_URL || 'https://dmrs.onrender.com/api';
 
-      const maxAttempts = 5;
-      const delay = 2000;
+      const maxAttempts = 6;
+      const delay = 2500;
 
       for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
@@ -29,11 +29,19 @@ function PaymentProcessingContent() {
             `${API_BASE_URL}/payments/verify/${reference}`
           );
 
-          if (res.data?.success) {
+          const paymentStatus = res.data?.data?.status;
+
+          if (paymentStatus === 'success') {
             router.replace('/payment-success');
             return;
           }
+
+          if (paymentStatus === 'failed' || paymentStatus === 'abandoned') {
+            router.replace('/payment-failed');
+            return;
+          }
         } catch (error) {
+          console.error('Verification attempt failed:', error);
         }
 
         if (attempt < maxAttempts) {
