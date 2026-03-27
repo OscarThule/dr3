@@ -29,6 +29,8 @@ function PaymentProcessingContent() {
             `${API_BASE_URL}/payments/verify/${reference}`
           );
 
+          console.log('VERIFY RESPONSE:', res.data);
+
           const paymentStatus = res.data?.data?.status;
 
           if (paymentStatus === 'success') {

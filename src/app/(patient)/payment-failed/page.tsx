@@ -1,28 +1,18 @@
 'use client';
 
 import { Suspense, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import axios from 'axios';
+import { useRouter } from 'next/navigation';
 
 function PaymentFailedContent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
-    const reference = searchParams.get('reference') || searchParams.get('trxref');
+    const timer = setTimeout(() => {
+      router.replace('/entry');
+    }, 5000); // 5 seconds
 
-    if (!reference) return;
-
-    const notifyFailure = async () => {
-      try {
-        await axios.get(`https://dmrs.onrender.com/api/payments/verify/${reference}`);
-      } catch (error) {
-        console.error('Payment verification failed:', error);
-      }
-    };
-
-    notifyFailure();
-  }, [searchParams]);
+    return () => clearTimeout(timer);
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-red-50 p-4">
@@ -43,16 +33,23 @@ function PaymentFailedContent() {
           </svg>
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Payment Failed</h1>
-        <p className="text-gray-600 mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+          Payment Failed
+        </h1>
+
+        <p className="text-gray-600 mb-4">
           Your payment was not completed. Please try again.
         </p>
 
+        <p className="text-sm text-gray-500">
+          Redirecting to entry page in 5 seconds...
+        </p>
+
         <button
-          onClick={() => router.push('/entry')}
-          className="w-full bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition"
+          onClick={() => router.replace('/entry')}
+          className="w-full mt-4 bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition"
         >
-          Back to Medical Centers
+          Go Now
         </button>
       </div>
     </div>
