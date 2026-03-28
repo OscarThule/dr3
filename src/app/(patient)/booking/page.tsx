@@ -25,7 +25,8 @@ type PaymentStatus =
   | 'failed'
   | 'refunded'
   | 'paid'
-  | 'none';
+  | 'none'
+  | 'not_required';
 
 type DateRangeOption = 'today' | 'tomorrow' | 'week' | 'all';
 type ConsultationType = 'face-to-face' | 'telemedicine' | 'follow-up';
@@ -146,6 +147,10 @@ interface MedicalCenter {
   created_at: string;
   updated_at: string;
   __v: number;
+  paymentSettings?: {
+    bookingDeposit?: number;
+    consultationFee?: number;
+  };
 }
 
 interface BookingPatientInfo {
@@ -169,6 +174,7 @@ interface Appointment {
   status: AppointmentStatus;
   payment_status: PaymentStatus;
   payment_reference?: string;
+  payment_required?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -264,7 +270,7 @@ const utils = {
   },
 };
 
-// ================= UI =================
+// ================= UI COMPONENTS =================
 
 const ScrollableContainer = ({
   children,
@@ -272,7 +278,13 @@ const ScrollableContainer = ({
 }: {
   children: React.ReactNode;
   className?: string;
-}) => <div className={`overflow-y-auto ${className}`}>{children}</div>;
+}) => (
+  <div
+    className={`overflow-y-auto overflow-x-hidden scroll-smooth pr-1 custom-scrollbar ${className}`}
+  >
+    {children}
+  </div>
+);
 
 const GlassCard = ({
   children,
@@ -280,11 +292,22 @@ const GlassCard = ({
 }: {
   children: React.ReactNode;
   className?: string;
-}) => <div className={`bg-white/80 border border-white/20 shadow-lg rounded-xl ${className}`}>{children}</div>;
+}) => (
+  <div
+    className={`rounded-3xl border border-white/40 bg-white/75 backdrop-blur-xl shadow-[0_10px_40px_rgba(15,23,42,0.08)] ${className}`}
+  >
+    {children}
+  </div>
+);
 
 const GradientBackground = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">{children}</div>
+  <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#dbeafe,_#eef2ff_35%,_#f8fafc_70%)]">
+    {children}
+  </div>
 );
+
+const formControlClass =
+  'w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 caret-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500';
 
 const Icon = ({ name, className = '' }: { name: string; className?: string }) => {
   const icons: Record<string, JSX.Element> = {
@@ -369,7 +392,9 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       />
     ),
     chevron: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />,
-    arrowLeft: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />,
+    arrowLeft: (
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+    ),
     close: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />,
     spinner: (
       <>
@@ -409,11 +434,13 @@ const PaymentStatusIndicator = ({ status }: { status: string }) => {
   );
 };
 
-const DoctorAvatar = ({ doctor, size = 8 }: { doctor: DoctorForBooking; size?: number }) => (
+const DoctorAvatar = ({ doctor, size = 56 }: { doctor: DoctorForBooking; size?: number }) => (
   <div
-    className={`w-${size} h-${size} rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg`}
+    className="rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg shrink-0"
     style={{
-      background: `linear-gradient(135deg, ${doctor.colorCode || '#4F46E5'}, ${doctor.colorCode || '#4F46E5'}80)`,
+      width: `${size}px`,
+      height: `${size}px`,
+      background: `linear-gradient(135deg, ${doctor.colorCode || '#4F46E5'}, ${doctor.colorCode || '#4F46E5'}CC)`,
     }}
   >
     {doctor.doctorName
@@ -481,7 +508,7 @@ const TimeSlotButton = ({
     <button
       onClick={onClick}
       disabled={!isAvailable}
-      className={`group p-4 rounded-xl border transition-all duration-300 text-center relative overflow-hidden bg-gradient-to-br ${bgClass} min-h-[140px]`}
+      className={`group p-4 rounded-2xl border transition-all duration-300 text-center relative overflow-hidden bg-gradient-to-br ${bgClass} min-h-[160px] hover:shadow-xl hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed`}
     >
       <div className="relative z-10">
         <div className="text-lg font-bold text-gray-800 mb-3">
@@ -567,13 +594,16 @@ const BookingModal = ({
   const slotStart = localModal.slot?.start || '';
   const slotEnd = localModal.slot?.end || '';
 
+  // Determine if payment is required based on medical center's deposit setting
+  const requiresPayment = (localModal.medicalCenter?.paymentSettings?.bookingDeposit ?? 0) > 0;
+
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/50" />
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <GlassCard className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
-          <ScrollableContainer className="max-h-[90vh]">
-            <div className="p-6">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <GlassCard className="w-full sm:max-w-4xl h-[92vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl">
+          <ScrollableContainer className="h-full max-h-[92vh] sm:max-h-[90vh]">
+            <div className="p-4 sm:p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-2xl font-bold text-gray-800">
@@ -685,8 +715,8 @@ const BookingModal = ({
                           symptoms: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      rows={3}
+                      className={formControlClass}
+                      rows={4}
                       placeholder="Please describe the reason for your visit..."
                       disabled={bookingLoading}
                     />
@@ -700,7 +730,7 @@ const BookingModal = ({
                         onChange={(e) =>
                           setLocalModal({ ...localModal, preferredSpecialization: e.target.value })
                         }
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl"
+                        className={formControlClass}
                       >
                         <option value="">Select specialization</option>
                         {specializations.map((spec) => (
@@ -721,7 +751,7 @@ const BookingModal = ({
                             consultationType: e.target.value as ConsultationType,
                           })
                         }
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl"
+                        className={formControlClass}
                       >
                         <option value="face-to-face">Face to Face</option>
                         <option value="telemedicine">Telemedicine</option>
@@ -745,8 +775,10 @@ const BookingModal = ({
                         <>
                           <Icon name="spinner" className="animate-spin h-5 w-5" /> Processing...
                         </>
-                      ) : (
+                      ) : requiresPayment ? (
                         <>Proceed to Payment</>
+                      ) : (
+                        <>Confirm Booking</>
                       )}
                     </button>
                   </div>
@@ -786,7 +818,6 @@ function BookingPageClient() {
   } = bookingState;
 
   const [showAppointments, setShowAppointments] = useState(false);
-  const [expiryTime, setExpiryTime] = useState<number | null>(null);
 
   useEffect(() => {
     dispatch(bookingActions.syncPatientInfoFromStorage());
@@ -818,17 +849,15 @@ function BookingPageClient() {
     }
   }, [searchParams, patientInfo, handlePaymentCallback]);
 
-  useEffect(() => {
-    const pendingAppointment = appointments.find(
-      (appt) => appt.status === 'pending' || appt.payment_status === 'pending'
-    );
-
-    if (pendingAppointment) {
-      setExpiryTime(new Date(pendingAppointment.created_at).getTime() + 15 * 60 * 1000);
-    } else {
-      setExpiryTime(null);
-    }
-  }, [appointments]);
+  // Only show expiry timer for appointments that require payment and are pending
+  const pendingPaidAppointment = appointments.find(
+    (appt) =>
+      appt.payment_required === true &&
+      (appt.status === 'pending' || appt.payment_status === 'pending')
+  );
+  const expiryTime = pendingPaidAppointment
+    ? new Date(pendingPaidAppointment.created_at).getTime() + 15 * 60 * 1000
+    : null;
 
   const getScheduleDays = useCallback((): DailySchedule[] => {
     if (!schedule?.dailySchedules) return [];
@@ -904,6 +933,7 @@ function BookingPageClient() {
       created_at: '',
       updated_at: '',
       __v: 0,
+      paymentSettings: { bookingDeposit: 0 }, // default to 0; will be updated from backend if needed
     }),
     []
   );
@@ -974,32 +1004,39 @@ function BookingPageClient() {
     <GradientBackground>
       <ToastContainer position="top-right" autoClose={5000} transition={Slide} />
 
-      <header className="sticky top-0 z-40 bg-white/80 border-b border-gray-200">
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-gray-200">
         <div className="px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={() => router.push('/entry')} className="p-2 hover:bg-gray-100 rounded-xl">
-                <Icon name="arrowLeft" className="w-6 h-6 text-gray-600" />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => router.push('/entry')}
+                className="p-2 hover:bg-gray-100 rounded-xl shrink-0"
+              >
+                <Icon name="arrowLeft" className="w-5 h-5 text-gray-600" />
               </button>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">Book Appointment</h1>
-                <p className="text-sm text-gray-500">Schedule your medical appointment</p>
+
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-800 truncate">
+                  Book Appointment
+                </h1>
+                <p className="text-sm text-gray-500 truncate">
+                  Schedule your medical appointment
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {bookingStatus !== 'idle' && (
-                <div className="hidden md:block">
-                  <PaymentStatusIndicator status={bookingStatus} />
-                </div>
+                <PaymentStatusIndicator status={bookingStatus} />
               )}
 
               {patientInfo && appointments.length > 0 && (
                 <button
                   onClick={() => setShowAppointments(!showAppointments)}
-                  className="px-4 py-2 bg-blue-100 text-blue-700 font-medium rounded-xl hover:bg-blue-200 flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-100 text-blue-700 font-medium rounded-xl hover:bg-blue-200 flex items-center gap-2 text-sm"
                 >
-                  <Icon name="calendar" className="w-5 h-5" /> Appointments ({appointments.length})
+                  <Icon name="calendar" className="w-4 h-4" />
+                  Appointments ({appointments.length})
                 </button>
               )}
             </div>
@@ -1088,7 +1125,7 @@ function BookingPageClient() {
                         {day.isWorking && (
                           <div className="p-6">
                             {day.timeSlots?.length > 0 ? (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                                 {day.timeSlots.slice(0, 14).map((slot) => (
                                   <TimeSlotButton
                                     key={slot.id}

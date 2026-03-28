@@ -219,7 +219,8 @@ interface Appointment {
     | 'failed'
     | 'refunded'
     | 'paid'
-    | 'none';
+    | 'none'
+    | 'not_required'; // Added 'not_required' for free bookings
   payment_reference?: string;
   created_at: string;
   updated_at: string;
@@ -525,7 +526,7 @@ export const handleSlotClickThunk = createAsyncThunk(
   }
 );
 
-// 4️⃣ HANDLE BOOK APPOINTMENT (CREATE + REDIRECT PAYMENT)
+// 4️⃣ HANDLE BOOK APPOINTMENT (CREATE + REDIRECT PAYMENT) - UPDATED FOR FREE BOOKINGS
 export const handleBookAppointmentThunk = createAsyncThunk(
   'booking/handleBookAppointment',
   async (localBookingModal: BookingModalData, { rejectWithValue, dispatch }) => {
@@ -538,7 +539,6 @@ export const handleBookAppointmentThunk = createAsyncThunk(
 
       dispatch(setBookingStatus('pending'));
 
-      // Build booking data
       const bookingPayload = {
         patient_id: patient._id,
         medical_center_id: localBookingModal.medicalCenter!._id,
@@ -551,7 +551,6 @@ export const handleBookAppointmentThunk = createAsyncThunk(
         consultation_type: localBookingModal.consultationType,
       };
 
-      // Create pending appointment (backend also creates payment + paystack link)
       const bookingRes = await axios.post(
         'https://dmrs.onrender.com/api/bookings',
         bookingPayload,
@@ -565,21 +564,43 @@ export const handleBookAppointmentThunk = createAsyncThunk(
         return rejectWithValue('Failed to create appointment');
       }
 
-      const appointment = bookingRes.data.data;
-      const payment = appointment?.payment;
+      const bookingData = bookingRes.data.data;
+      const appointment = bookingData?.appointment;
+      const payment = bookingData?.payment;
+      const paymentRequired = bookingData?.payment_required;
 
-      if (!payment?.authorization_url) {
+      if (!appointment) {
         dispatch(setBookingStatus('failed'));
-        return rejectWithValue('Payment link missing from server');
+        return rejectWithValue('Appointment data missing from server');
       }
 
-      // Redirect patient to Paystack
-      window.location.href = payment.authorization_url;
+      // FREE BOOKING
+      if (paymentRequired === false) {
+        dispatch(setBookingStatus('confirmed'));
+        dispatch(setSuccessMessage('Appointment booked successfully.'));
+        dispatch(closeBookingModal());
+        dispatch(fetchPatientAppointmentsThunk());
 
-      return {
-        success: true,
-        appointment,
-      };
+        return {
+          success: true,
+          type: 'free',
+          appointment,
+        };
+      }
+
+      // PAID BOOKING
+      if (payment?.authorization_url) {
+        window.location.href = payment.authorization_url;
+
+        return {
+          success: true,
+          type: 'paid',
+          appointment,
+        };
+      }
+
+      dispatch(setBookingStatus('failed'));
+      return rejectWithValue('Payment link missing from server');
     } catch (err) {
       const error = err as { response?: { data?: { message?: string } }; message?: string };
       dispatch(setBookingStatus('failed'));
@@ -619,7 +640,7 @@ export const verifyPaymentThunk = createAsyncThunk(
   }
 );
 
-// 6️⃣ POLL FOR CONFIRMATION (WEBHOOK SYNC)
+// 6️⃣ POLL FOR CONFIRMATION (WEBHOOK SYNC) - UPDATED TO CHECK 'success' AND 'paid'
 export const pollForConfirmationThunk = createAsyncThunk(
   'booking/pollConfirmation',
   async (_, { dispatch, getState }) => {
@@ -636,10 +657,10 @@ export const pollForConfirmationThunk = createAsyncThunk(
         // Get current state to check if we can stop polling
         const state = getState() as RootState;
 
-        // Check if we have a recent confirmed appointment
+        // Check if we have a recent confirmed appointment with 'success' or 'paid' payment status
         const recentAppointment = state.booking.appointments.find(
           (appt) =>
-            appt.payment_status === 'paid' &&
+            (appt.payment_status === 'success' || appt.payment_status === 'paid') &&
             appt.status === 'confirmed' &&
             new Date(appt.created_at).getTime() > Date.now() - 60000 // Last minute
         );
@@ -839,7 +860,8 @@ const bookingSlice = createSlice({
     builder.addCase(handleBookAppointmentThunk.fulfilled, (state) => {
       state.bookingLoading = false;
       state.bookingError = null;
-      // Status remains pending until payment verification
+      // For free bookings, status is set to 'confirmed' in the thunk itself
+      // For paid bookings, we redirect, so status remains 'pending' until verification
     });
 
     builder.addCase(handleBookAppointmentThunk.rejected, (state, action) => {
@@ -848,7 +870,7 @@ const bookingSlice = createSlice({
       state.bookingStatus = 'failed';
     });
 
-    // Fetch Patient Appointments
+    // Fetch Patient Appointments - UPDATED status mapping
     builder.addCase(fetchPatientAppointmentsThunk.fulfilled, (state, action) => {
       state.appointments = action.payload || [];
 
@@ -858,11 +880,20 @@ const bookingSlice = createSlice({
       );
 
       if (recentAppointment) {
-        if (recentAppointment.payment_status === 'paid' && recentAppointment.status === 'confirmed') {
+        // Check if appointment is confirmed and payment is either 'success', 'paid', or 'not_required' (free)
+        if (
+          (recentAppointment.payment_status === 'success' ||
+            recentAppointment.payment_status === 'paid' ||
+            recentAppointment.payment_status === 'not_required') &&
+          recentAppointment.status === 'confirmed'
+        ) {
           state.bookingStatus = 'confirmed';
         } else if (recentAppointment.payment_status === 'failed') {
           state.bookingStatus = 'failed';
-        } else if (recentAppointment.payment_status === 'paid') {
+        } else if (
+          recentAppointment.payment_status === 'success' ||
+          recentAppointment.payment_status === 'paid'
+        ) {
           state.bookingStatus = 'paid';
         }
       }
