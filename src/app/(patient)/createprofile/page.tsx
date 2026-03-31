@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDispatch, useSelector } from 'react-redux'
 import Link from 'next/link'
-import { 
-  UserCircle, 
-  Lock, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
+import {
+  UserCircle,
+  Lock,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
   User,
   Shield,
   Stethoscope,
@@ -23,18 +23,16 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
-  LucideIcon
+  LucideIcon,
 } from 'lucide-react'
 import type { RootState, AppDispatch } from '@/app/redux/store'
-import { 
-  registerPatient, 
-  loginPatient, 
-  getPatientProfile, 
-  logout, 
-  clearError 
+import {
+  registerPatient,
+  loginPatient,
+  getPatientProfile,
+  logout,
+  clearError,
 } from '@/app/reduxPatient/slices/patient/profileSlice'
-
-// ==================== Types ====================
 
 interface PatientFormData {
   firstName: string
@@ -81,7 +79,6 @@ interface ProfileState {
   isAuthenticated: boolean
 }
 
-// Type guard for ApiError
 function isApiError(error: unknown): error is ApiError {
   return (
     typeof error === 'object' &&
@@ -91,14 +88,10 @@ function isApiError(error: unknown): error is ApiError {
   )
 }
 
-// ==================== Custom Hooks ====================
-
 const useAppDispatch = () => useDispatch<AppDispatch>()
 const useAppSelector = <TSelected = unknown>(
   selector: (state: RootState) => TSelected
 ) => useSelector(selector)
-
-// ==================== Helper Functions ====================
 
 const getErrorMessage = (error: unknown): string => {
   if (typeof error === 'string') return error
@@ -106,28 +99,27 @@ const getErrorMessage = (error: unknown): string => {
   return 'An unexpected error occurred'
 }
 
-// ==================== Main Component ====================
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export default function PatientProfilePage() {
-  
   const dispatch = useAppDispatch()
   const router = useRouter()
   const profileState = useAppSelector((state: RootState) => state.profile) as ProfileState
-  
-  const { 
-    patientInfo = null, 
-    loading = false, 
-    error = null, 
-    isAuthenticated = false 
+
+  const {
+    patientInfo = null,
+    loading = false,
+    error = null,
+    isAuthenticated = false,
   } = profileState
-  
+
   const [isLogin, setIsLogin] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [formErrors, setFormErrors] = useState<FormErrors>({})
-  
+
   const [formData, setFormData] = useState<PatientFormData>({
     firstName: '',
     lastName: '',
@@ -139,10 +131,9 @@ export default function PatientProfilePage() {
     address: '',
     dateOfBirth: '',
     gender: '',
-    emergencyContact: ''
+    emergencyContact: '',
   })
 
-  // Check if user is already logged in on mount
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
@@ -150,117 +141,158 @@ export default function PatientProfilePage() {
         if (token && !patientInfo) {
           await dispatch(getPatientProfile()).unwrap()
         }
-      } catch (error) {
-        console.error('Auth check failed:', error)
+      } catch (authError) {
+        console.error('Auth check failed:', authError)
         localStorage.removeItem('patientToken')
       }
     }
-    
+
     checkAuthStatus()
   }, [dispatch, patientInfo])
 
-  // Redirect to /entry if authenticated
   useEffect(() => {
     if (isAuthenticated && patientInfo) {
       const timer = setTimeout(() => {
         router.push('/entry')
-      }, 1000)
+      }, 10000)
       return () => clearTimeout(timer)
     }
   }, [isAuthenticated, patientInfo, router])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }))
+
     if (formErrors[name]) {
-      setFormErrors(prev => ({ ...prev, [name]: '' }))
+      setFormErrors((prev) => ({ ...prev, [name]: '' }))
     }
+
     if (localError) setLocalError(null)
   }
 
   const validateForm = useCallback((): boolean => {
     const errors: FormErrors = {}
-    
+
     if (!isLogin) {
       if (!formData.firstName.trim()) errors.firstName = 'First name is required'
       if (!formData.lastName.trim()) errors.lastName = 'Last name is required'
+
       if (!formData.email.trim()) errors.email = 'Email is required'
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = 'Invalid email format'
-      
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        errors.email = 'Invalid email format'
+      }
+
       if (!formData.phone.trim()) errors.phone = 'Phone number is required'
-      else if (!/^[+]?[\d\s-]+$/.test(formData.phone)) errors.phone = 'Invalid phone number'
-      
+      else if (!/^[+]?[\d\s-]+$/.test(formData.phone)) {
+        errors.phone = 'Invalid phone number'
+      }
+
       if (!formData.idNumber.trim()) errors.idNumber = 'ID number is required'
-      
+
       if (!formData.password) errors.password = 'Password is required'
-      else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters'
-      
-      if (!formData.confirmPassword) errors.confirmPassword = 'Please confirm your password'
-      else if (formData.password !== formData.confirmPassword) errors.confirmPassword = 'Passwords do not match'
-      
+      else if (formData.password.length < 6) {
+        errors.password = 'Password must be at least 6 characters'
+      }
+
+      if (!formData.confirmPassword) {
+        errors.confirmPassword = 'Please confirm your password'
+      } else if (formData.password !== formData.confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match'
+      }
+
       if (!formData.address.trim()) errors.address = 'Address is required'
-      if (!formData.dateOfBirth) errors.dateOfBirth = 'Date of birth is required'
-      else {
+      if (!formData.dateOfBirth) {
+        errors.dateOfBirth = 'Date of birth is required'
+      } else {
         const birthDate = new Date(formData.dateOfBirth)
         const today = new Date()
         const age = today.getFullYear() - birthDate.getFullYear()
-        if (age < 0 || age > 120) errors.dateOfBirth = 'Please enter a valid date of birth'
+        if (age < 0 || age > 120) {
+          errors.dateOfBirth = 'Please enter a valid date of birth'
+        }
       }
-      
+
       if (!formData.gender) errors.gender = 'Please select a gender'
-      if (!formData.emergencyContact.trim()) errors.emergencyContact = 'Emergency contact is required'
+      if (!formData.emergencyContact.trim()) {
+        errors.emergencyContact = 'Emergency contact is required'
+      }
     } else {
       if (!formData.idNumber.trim()) errors.idNumber = 'ID number is required'
       if (!formData.password) errors.password = 'Password is required'
     }
-    
+
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }, [isLogin, formData])
 
+  const attemptPatientLogin = async (payload: { idNumber: string; password: string }) => {
+    let lastError: unknown = null
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const result = await dispatch(loginPatient(payload)).unwrap()
+        return result
+      } catch (attemptError) {
+        lastError = attemptError
+
+        if (attempt < 3) {
+          await sleep(700)
+        }
+      }
+    }
+
+    throw lastError
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     try {
       dispatch(clearError())
       setLocalError(null)
-      
-      const result = await dispatch(loginPatient({ 
-        idNumber: formData.idNumber, 
-        password: formData.password 
-      })).unwrap()
-      
+      setSuccessMessage(null)
+
+      const result = await attemptPatientLogin({
+        idNumber: formData.idNumber.trim(),
+        password: formData.password,
+      })
+
       if (result?.success) {
-        setSuccessMessage('Login successful! Redirecting to dashboard...');
-        setFormData(prev => ({
+        setSuccessMessage('Login successful! Redirecting to dashboard...')
+        setFormData((prev) => ({
           ...prev,
           idNumber: '',
-          password: ''
-        }));
-        
+          password: '',
+        }))
+
         setTimeout(() => {
-          router.push('/entry');
-        }, 1500);
+          router.push('/entry')
+        }, 1200)
       }
-    } catch (err: unknown) {
-      setLocalError(getErrorMessage(err) || 'Login failed. Please check your credentials.')
+    } catch (loginError) {
+      console.error('Login failed after retries:', loginError)
+      setLocalError('Login failed. It may be a network issue or wrong credentials.')
     }
   }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     try {
       dispatch(clearError())
       setLocalError(null)
-      
+      setSuccessMessage(null)
+
       const registerData = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -271,11 +303,11 @@ export default function PatientProfilePage() {
         address: formData.address.trim(),
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
-        emergencyContact: formData.emergencyContact.trim()
+        emergencyContact: formData.emergencyContact.trim(),
       }
 
       const result = await dispatch(registerPatient(registerData)).unwrap()
-      
+
       if (result?.success) {
         setSuccessMessage('Registration successful! You can now login.')
         setIsLogin(true)
@@ -290,12 +322,12 @@ export default function PatientProfilePage() {
           address: '',
           dateOfBirth: '',
           gender: '',
-          emergencyContact: ''
+          emergencyContact: '',
         })
         setFormErrors({})
       }
-    } catch (err: unknown) {
-      setLocalError(getErrorMessage(err) || 'Registration failed. Please try again.')
+    } catch (registerError: unknown) {
+      setLocalError(getErrorMessage(registerError) || 'Registration failed. Please try again.')
     }
   }
 
@@ -305,11 +337,12 @@ export default function PatientProfilePage() {
       setSuccessMessage('Logged out successfully')
       localStorage.removeItem('patientToken')
       localStorage.removeItem('refreshToken')
+
       setTimeout(() => {
         router.push('/')
-      }, 1500)
-    } catch (err: unknown) {
-      setLocalError(getErrorMessage(err) || 'Logout failed')
+      }, 1200)
+    } catch (logoutError: unknown) {
+      setLocalError(getErrorMessage(logoutError) || 'Logout failed')
     }
   }
 
@@ -330,7 +363,7 @@ export default function PatientProfilePage() {
       address: '',
       dateOfBirth: '',
       gender: '',
-      emergencyContact: ''
+      emergencyContact: '',
     })
   }
 
@@ -342,27 +375,28 @@ export default function PatientProfilePage() {
       const res = await fetch('https://dmrs.onrender.com/api/patients/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email }),
       })
-      const data = await res.json() as { message?: string }
+
+      const data = (await res.json()) as { message?: string }
       alert(data.message || 'Check your email for reset link')
-    } catch (err) {
+    } catch {
       alert('Failed to send reset email')
     }
   }
 
-  // Clear messages after 5 seconds
   useEffect(() => {
     if (successMessage || localError) {
       const timer = setTimeout(() => {
         setSuccessMessage(null)
         setLocalError(null)
       }, 5000)
+
       return () => clearTimeout(timer)
     }
   }, [successMessage, localError])
 
-  if (loading) {
+  if (loading && !patientInfo && !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50/50">
         <div className="text-center space-y-4">
@@ -374,11 +408,12 @@ export default function PatientProfilePage() {
     )
   }
 
-  const displayError = error || localError
+  const displayError =
+    localError ||
+    (isLogin && error ? 'Login failed. It may be a network issue or wrong credentials.' : error)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/50">
-      {/* Floating Medical Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-blue-200/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-200/15 rounded-full blur-3xl"></div>
@@ -386,10 +421,9 @@ export default function PatientProfilePage() {
       </div>
 
       <main className="container mx-auto px-4 py-8 relative z-10">
-        {/* Global Error/Success Messages */}
         {displayError && (
           <div className="max-w-4xl mx-auto mb-6">
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3 animate-fade-in">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-red-800 font-medium">Error</p>
@@ -401,7 +435,7 @@ export default function PatientProfilePage() {
 
         {successMessage && (
           <div className="max-w-4xl mx-auto mb-6">
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start space-x-3 animate-fade-in">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start space-x-3">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-green-800 font-medium">Success</p>
@@ -412,10 +446,8 @@ export default function PatientProfilePage() {
         )}
 
         {isAuthenticated && patientInfo ? (
-          // Dashboard View - Will redirect to /entry after 1 second
           <DashboardView patientInfo={patientInfo} onLogout={handleLogout} />
         ) : (
-          // Auth Forms View
           <AuthFormsView
             isLogin={isLogin}
             formData={formData}
@@ -437,8 +469,6 @@ export default function PatientProfilePage() {
   )
 }
 
-// ==================== Dashboard Components ====================
-
 interface DashboardViewProps {
   patientInfo: PatientInfo
   onLogout: () => void
@@ -447,7 +477,6 @@ interface DashboardViewProps {
 function DashboardView({ patientInfo, onLogout }: DashboardViewProps) {
   return (
     <div className="max-w-6xl mx-auto">
-      {/* Welcome Header */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -466,15 +495,12 @@ function DashboardView({ patientInfo, onLogout }: DashboardViewProps) {
         </div>
       </div>
 
-      {/* Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Card */}
         <div className="lg:col-span-2 space-y-6">
           <PersonalInfoCard patientInfo={patientInfo} />
           <MedicalInfoCard patientInfo={patientInfo} />
         </div>
 
-        {/* Quick Actions Sidebar */}
         <div className="space-y-6">
           <QuickStatsCard />
           <QuickActionsCard />
@@ -485,7 +511,6 @@ function DashboardView({ patientInfo, onLogout }: DashboardViewProps) {
   )
 }
 
-// Personal Info Card Component
 interface InfoFieldProps {
   label: string
   value: string
@@ -504,23 +529,23 @@ function PersonalInfoCard({ patientInfo }: { patientInfo: PatientInfo }) {
           Verified
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <InfoField label="Full Name" value={`${patientInfo.firstName} ${patientInfo.lastName}`} />
           <InfoField label="Email Address" value={patientInfo.email} icon={Mail} />
           <InfoField label="Phone Number" value={patientInfo.phone} icon={Phone} />
         </div>
-        
+
         <div className="space-y-4">
           <InfoField label="ID Number" value={patientInfo.idNumber} icon={Shield} />
-          <InfoField 
-            label="Date of Birth" 
+          <InfoField
+            label="Date of Birth"
             value={new Date(patientInfo.dateOfBirth).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
-              day: 'numeric'
-            })} 
+              day: 'numeric',
+            })}
             icon={Calendar}
           />
           <InfoField label="Gender" value={patientInfo.gender} icon={User} />
@@ -542,7 +567,6 @@ function InfoField({ label, value, icon: Icon }: InfoFieldProps) {
   )
 }
 
-// Medical Info Card Component
 function MedicalInfoCard({ patientInfo }: { patientInfo: PatientInfo }) {
   return (
     <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl shadow-lg p-6 border border-blue-100">
@@ -550,7 +574,7 @@ function MedicalInfoCard({ patientInfo }: { patientInfo: PatientInfo }) {
         <Stethoscope className="w-6 h-6 text-blue-600" />
         <span>Medical Information</span>
       </h2>
-      
+
       <div className="space-y-4">
         <div className="bg-white/50 p-4 rounded-xl backdrop-blur-sm">
           <p className="text-sm text-slate-500 mb-1">Home Address</p>
@@ -571,7 +595,6 @@ function MedicalInfoCard({ patientInfo }: { patientInfo: PatientInfo }) {
   )
 }
 
-// Quick Stats Card Component
 interface StatItemProps {
   label: string
   value: string
@@ -595,7 +618,7 @@ function StatItem({ label, value, icon: Icon, color }: StatItemProps) {
   const colorClasses = {
     green: 'bg-green-50 text-green-600',
     blue: 'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600'
+    purple: 'bg-purple-50 text-purple-600',
   }
 
   return (
@@ -609,7 +632,6 @@ function StatItem({ label, value, icon: Icon, color }: StatItemProps) {
   )
 }
 
-// Quick Actions Card Component
 interface QuickActionLinkProps {
   href: string
   title: string
@@ -646,7 +668,7 @@ function QuickActionLink({ href, title, description, icon: Icon, color }: QuickA
   const colorClasses = {
     green: 'bg-green-50 hover:bg-green-100 text-green-600',
     blue: 'bg-blue-50 hover:bg-blue-100 text-blue-600',
-    purple: 'bg-purple-50 hover:bg-purple-100 text-purple-600'
+    purple: 'bg-purple-50 hover:bg-purple-100 text-purple-600',
   }
 
   return (
@@ -667,7 +689,6 @@ function QuickActionLink({ href, title, description, icon: Icon, color }: QuickA
   )
 }
 
-// Account Status Card Component
 function AccountStatusCard() {
   return (
     <div className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl shadow-lg p-6 text-white">
@@ -685,8 +706,6 @@ function AccountStatusCard() {
     </div>
   )
 }
-
-// ==================== Auth Forms Components ====================
 
 interface AuthFormsViewProps {
   isLogin: boolean
@@ -717,12 +736,11 @@ function AuthFormsView({
   onLoginSubmit,
   onRegisterSubmit,
   onFormSwitch,
-  onForgotPassword
+  onForgotPassword,
 }: AuthFormsViewProps) {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-        {/* Left Side - Welcome Message */}
         <div className="text-center lg:text-left">
           <div className="mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl shadow-lg mb-6">
@@ -735,32 +753,35 @@ function AuthFormsView({
               Manage your medical appointments, access health records, and connect with healthcare professionals in one secure platform.
             </p>
           </div>
-          
+
           <div className="space-y-4">
-            <FeatureItem icon={Shield} text="Secure & HIPAA Compliant" color="green" />
+            <FeatureItem icon={Shield} text="Secure & POPIA Compliant" color="green" />
             <FeatureItem icon={Calendar} text="24/7 Appointment Booking" color="blue" />
             <FeatureItem icon={Phone} text="Virtual Consultations" color="purple" />
           </div>
         </div>
 
-        {/* Right Side - Auth Forms */}
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 border border-slate-200">
           <div className="flex mb-6">
             <button
               type="button"
               onClick={() => !isLogin && onFormSwitch()}
-              className={`flex-1 py-3 font-medium transition-all duration-300 ${isLogin 
-                ? 'text-blue-600 border-b-2 border-blue-600' 
-                : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex-1 py-3 font-medium transition-all duration-300 ${
+                isLogin
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
             >
               Sign In
             </button>
             <button
               type="button"
               onClick={() => isLogin && onFormSwitch()}
-              className={`flex-1 py-3 font-medium transition-all duration-300 ${!isLogin 
-                ? 'text-blue-600 border-b-2 border-blue-600' 
-                : 'text-slate-400 hover:text-slate-600'}`}
+              className={`flex-1 py-3 font-medium transition-all duration-300 ${
+                !isLogin
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
             >
               Register
             </button>
@@ -796,8 +817,8 @@ function AuthFormsView({
               onClick={onFormSwitch}
               className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
-              {isLogin 
-                ? "Don't have an account? Register here" 
+              {isLogin
+                ? "Don't have an account? Register here"
                 : 'Already have an account? Sign in here'}
             </button>
             <div className="text-right">
@@ -816,7 +837,6 @@ function AuthFormsView({
   )
 }
 
-// Login Form Component
 interface LoginFormProps {
   formData: PatientFormData
   formErrors: FormErrors
@@ -834,7 +854,7 @@ function LoginForm({
   loading,
   onInputChange,
   onTogglePassword,
-  onSubmit
+  onSubmit,
 }: LoginFormProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -854,7 +874,7 @@ function LoginForm({
       <FormField
         label="Password"
         name="password"
-        type={showPassword ? "text" : "password"}
+        type={showPassword ? 'text' : 'password'}
         value={formData.password}
         onChange={onInputChange}
         error={formErrors.password}
@@ -869,14 +889,13 @@ function LoginForm({
 
       <SubmitButton
         loading={loading}
-        text={loading ? "Signing in..." : "Sign In"}
+        text={loading ? 'Signing in...' : 'Sign In'}
         loadingText="Signing in..."
       />
     </form>
   )
 }
 
-// Register Form Component
 interface RegisterFormProps {
   formData: PatientFormData
   formErrors: FormErrors
@@ -898,7 +917,7 @@ function RegisterForm({
   onInputChange,
   onTogglePassword,
   onToggleConfirmPassword,
-  onSubmit
+  onSubmit,
 }: RegisterFormProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -971,7 +990,7 @@ function RegisterForm({
         <FormField
           label="Password"
           name="password"
-          type={showPassword ? "text" : "password"}
+          type={showPassword ? 'text' : 'password'}
           value={formData.password}
           onChange={onInputChange}
           error={formErrors.password}
@@ -986,7 +1005,7 @@ function RegisterForm({
         <FormField
           label="Confirm Password"
           name="confirmPassword"
-          type={showConfirmPassword ? "text" : "password"}
+          type={showConfirmPassword ? 'text' : 'password'}
           value={formData.confirmPassword}
           onChange={onInputChange}
           error={formErrors.confirmPassword}
@@ -1013,15 +1032,15 @@ function RegisterForm({
           required
         />
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Gender
-          </label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Gender</label>
           <select
             name="gender"
             value={formData.gender}
             onChange={onInputChange}
             disabled={loading}
-            className={`w-full px-4 py-3 border ${formErrors.gender ? 'border-red-300' : 'border-slate-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 transition-all duration-300`}
+            className={`w-full px-4 py-3 border ${
+              formErrors.gender ? 'border-red-300' : 'border-slate-300'
+            } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 transition-all duration-300 bg-white text-slate-900 caret-slate-900`}
             required
           >
             <option value="">Select Gender</option>
@@ -1029,7 +1048,9 @@ function RegisterForm({
             <option value="Female">Female</option>
             <option value="Other">Other</option>
           </select>
-          {formErrors.gender && <p className="mt-1 text-sm text-red-600">{formErrors.gender}</p>}
+          {formErrors.gender && (
+            <p className="mt-1 text-sm text-red-600">{formErrors.gender}</p>
+          )}
         </div>
       </div>
 
@@ -1062,14 +1083,13 @@ function RegisterForm({
 
       <SubmitButton
         loading={loading}
-        text={loading ? "Creating Account..." : "Create Account"}
+        text={loading ? 'Creating Account...' : 'Create Account'}
         loadingText="Creating Account..."
       />
     </form>
   )
 }
 
-// Feature Item Component
 interface FeatureItemProps {
   icon: LucideIcon
   text: string
@@ -1080,7 +1100,7 @@ function FeatureItem({ icon: Icon, text, color }: FeatureItemProps) {
   const colorClasses = {
     green: 'bg-green-100 text-green-600',
     blue: 'bg-blue-100 text-blue-600',
-    purple: 'bg-purple-100 text-purple-600'
+    purple: 'bg-purple-100 text-purple-600',
   }
 
   return (
@@ -1093,7 +1113,6 @@ function FeatureItem({ icon: Icon, text, color }: FeatureItemProps) {
   )
 }
 
-// Form Field Component
 interface FormFieldProps {
   label: string
   name: string
@@ -1119,22 +1138,20 @@ function FormField({
   onChange,
   error,
   icon: Icon,
-  iconClassName = "text-slate-400",
+  iconClassName = 'text-slate-400',
   placeholder,
   disabled,
   required,
   showPasswordToggle,
   onTogglePassword,
-  showPassword
+  showPassword,
 }: FormFieldProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-2">
-        {label}
-      </label>
+      <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>
       <div className="relative">
         {Icon && (
-          <Icon className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${iconClassName}`} />
+          <Icon className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${iconClassName}`} />
         )}
         <input
           type={type}
@@ -1142,7 +1159,12 @@ function FormField({
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className={`w-full ${Icon ? 'pl-12' : 'pl-4'} ${showPasswordToggle ? 'pr-12' : 'pr-4'} py-3 border ${error ? 'border-red-300' : 'border-slate-300'} rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 transition-all duration-300`}
+          autoComplete="off"
+          className={`w-full ${Icon ? 'pl-12' : 'pl-4'} ${
+            showPasswordToggle ? 'pr-12' : 'pr-4'
+          } py-3 border ${
+            error ? 'border-red-300' : 'border-slate-300'
+          } rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 transition-all duration-300 bg-white text-slate-900 placeholder:text-slate-400 caret-slate-900`}
           placeholder={placeholder}
           required={required}
         />
@@ -1150,7 +1172,7 @@ function FormField({
           <button
             type="button"
             onClick={onTogglePassword}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             tabIndex={-1}
           >
             {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -1162,7 +1184,6 @@ function FormField({
   )
 }
 
-// Submit Button Component
 interface SubmitButtonProps {
   loading: boolean
   text: string

@@ -5,14 +5,22 @@ import axios, { AxiosError } from 'axios';
 export type FacilityType = 'surgery' | 'clinic' | 'hospital' | 'community_health' | 'mobile_unit' | 'other';
 export type PractitionerRole = 'doctor' | 'nurse' | 'clinical_manager' | 'admin';
 export type VerificationStatus = 'unverified' | 'verified' | 'rejected';
+export type LocationSource = 'address' | 'geolocation' | 'address_and_geolocation';
 
 export interface Address {
   line1: string;
+  line2: string;
   city: string;
   province: string;
   postal: string;
+
+  full_address: string;
+  formatted_address: string;
+  place_id: string;
   lat: number | null;
   lng: number | null;
+  location_source: LocationSource;
+  is_location_verified: boolean;
 }
 
 export interface BankDetails {
@@ -108,13 +116,20 @@ const initialState: MedicalCenterState = {
     official_domain_email: '',
     phone: '',
     address: {
-      line1: '',
-      city: '',
-      province: '',
-      postal: '',
-      lat: null,
-      lng: null,
-    },
+  line1: '',
+  line2: '',
+  city: '',
+  province: '',
+  postal: '',
+
+  full_address: '',
+  formatted_address: '',
+  place_id: '',
+  lat: null,
+  lng: null,
+  location_source: 'address',
+  is_location_verified: false,
+},
     practitioners: [],
     bankDetails: {
       bank_name: '',
@@ -397,6 +412,11 @@ const medicalCenterSlice = createSlice({
         state.isGettingLocation = false;
         state.formData.address.lat = action.payload.lat;
         state.formData.address.lng = action.payload.lng;
+        // Determine location source based on whether full_address already exists
+        state.formData.address.location_source =
+          state.formData.address.full_address.trim()
+            ? 'address_and_geolocation'
+            : 'geolocation';
         state.locationError = 'Location captured successfully!';
       })
       .addCase(getCurrentLocation.rejected, (state, action) => {

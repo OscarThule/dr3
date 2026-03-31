@@ -264,9 +264,22 @@ const utils = {
 
   getDoctorStatus: (doctor: DoctorForBooking) => {
     if (doctor.isBooked) {
-      return { text: 'Booked', color: 'text-red-600', bg: 'bg-red-100', icon: '❌' };
+      return {
+        text: 'Booked',
+        color: 'text-rose-700',
+        bg: 'bg-rose-100',
+        dot: 'bg-rose-500',
+        icon: '❌',
+      };
     }
-    return { text: 'Available', color: 'text-green-600', bg: 'bg-green-100', icon: '✅' };
+
+    return {
+      text: 'Available',
+      color: 'text-emerald-700',
+      bg: 'bg-emerald-100',
+      dot: 'bg-emerald-500',
+      icon: '✅',
+    };
   },
 };
 
@@ -280,13 +293,38 @@ const ScrollableContainer = ({
   className?: string;
 }) => (
   <div
-    className={`overflow-y-auto overflow-x-hidden scroll-smooth pr-1 custom-scrollbar ${className}`}
+    className={`overflow-y-auto overflow-x-hidden pr-1 sm:pr-2 ${className}`}
+    style={{
+      scrollbarWidth: 'thin',
+      scrollbarColor: '#94a3b8 transparent',
+      WebkitOverflowScrolling: 'touch',
+    }}
   >
+    <style jsx>{`
+      div::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      div::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      div::-webkit-scrollbar-thumb {
+        background: linear-gradient(to bottom, #cbd5e1, #94a3b8);
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      div::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(to bottom, #94a3b8, #64748b);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+    `}</style>
     {children}
   </div>
 );
 
-const GlassCard = ({
+const SurfaceCard = ({
   children,
   className = '',
 }: {
@@ -294,20 +332,20 @@ const GlassCard = ({
   className?: string;
 }) => (
   <div
-    className={`rounded-3xl border border-white/40 bg-white/75 backdrop-blur-xl shadow-[0_10px_40px_rgba(15,23,42,0.08)] ${className}`}
+    className={`rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)] ${className}`}
   >
     {children}
   </div>
 );
 
-const GradientBackground = ({ children }: { children: React.ReactNode }) => (
-  <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#dbeafe,_#eef2ff_35%,_#f8fafc_70%)]">
+const SoftBackground = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#f8fafc_45%,#f1f5f9_100%)]">
     {children}
   </div>
 );
 
 const formControlClass =
-  'w-full px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 caret-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500';
+  'w-full rounded-2xl border border-slate-300 bg-white px-4 py-3.5 text-[15px] text-slate-900 placeholder:text-slate-400 caret-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 appearance-none';
 
 const Icon = ({ name, className = '' }: { name: string; className?: string }) => {
   const icons: Record<string, JSX.Element> = {
@@ -315,7 +353,7 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.8}
         d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
       />
     ),
@@ -323,7 +361,7 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.8}
         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
       />
     ),
@@ -331,7 +369,7 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.8}
         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
       />
     ),
@@ -340,13 +378,13 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth={2}
+          strokeWidth={1.8}
           d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
         />
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeWidth={2}
+          strokeWidth={1.8}
           d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
         />
       </>
@@ -355,7 +393,7 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.8}
         d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
       />
     ),
@@ -363,7 +401,7 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.8}
         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
       />
     ),
@@ -371,7 +409,7 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.8}
         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
       />
     ),
@@ -379,7 +417,7 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.8}
         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.342 16.5c-.77.833.192 2.5 1.732 2.5z"
       />
     ),
@@ -387,15 +425,15 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={2}
+        strokeWidth={1.8}
         d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
       />
     ),
-    chevron: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />,
+    chevron: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 9l-7 7-7-7" />,
     arrowLeft: (
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
     ),
-    close: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />,
+    close: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 18L18 6M6 6l12 12" />,
     spinner: (
       <>
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -416,19 +454,21 @@ const Icon = ({ name, className = '' }: { name: string; className?: string }) =>
 };
 
 const PaymentStatusIndicator = ({ status }: { status: string }) => {
-  const configs: Record<string, { color: string; bg: string; icon: string; text: string }> = {
-    pending: { color: 'text-yellow-600', bg: 'bg-yellow-100', icon: '⏳', text: 'Awaiting Payment' },
-    paid: { color: 'text-blue-600', bg: 'bg-blue-100', icon: '✅', text: 'Payment Verified' },
-    confirmed: { color: 'text-green-600', bg: 'bg-green-100', icon: '🎉', text: 'Appointment Confirmed' },
-    failed: { color: 'text-red-600', bg: 'bg-red-100', icon: '❌', text: 'Payment Failed' },
-    default: { color: 'text-gray-600', bg: 'bg-gray-100', icon: '📋', text: 'Ready to Book' },
+  const configs: Record<string, { color: string; bg: string; text: string }> = {
+    pending: { color: 'text-amber-700', bg: 'bg-amber-100', text: 'Awaiting Payment' },
+    paid: { color: 'text-blue-700', bg: 'bg-blue-100', text: 'Payment Verified' },
+    confirmed: { color: 'text-emerald-700', bg: 'bg-emerald-100', text: 'Appointment Confirmed' },
+    failed: { color: 'text-rose-700', bg: 'bg-rose-100', text: 'Payment Failed' },
+    default: { color: 'text-slate-700', bg: 'bg-slate-100', text: 'Ready to Book' },
   };
 
   const config = configs[status] || configs.default;
 
   return (
-    <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${config.bg} ${config.color} font-medium`}>
-      <span>{config.icon}</span>
+    <div
+      className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-semibold ${config.bg} ${config.color}`}
+    >
+      <span className={`h-2.5 w-2.5 rounded-full ${status === 'confirmed' ? 'bg-emerald-500' : status === 'pending' ? 'bg-amber-500' : status === 'paid' ? 'bg-blue-500' : status === 'failed' ? 'bg-rose-500' : 'bg-slate-500'}`} />
       <span>{config.text}</span>
     </div>
   );
@@ -436,11 +476,11 @@ const PaymentStatusIndicator = ({ status }: { status: string }) => {
 
 const DoctorAvatar = ({ doctor, size = 56 }: { doctor: DoctorForBooking; size?: number }) => (
   <div
-    className="rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg shrink-0"
+    className="shrink-0 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-sm"
     style={{
       width: `${size}px`,
       height: `${size}px`,
-      background: `linear-gradient(135deg, ${doctor.colorCode || '#4F46E5'}, ${doctor.colorCode || '#4F46E5'}CC)`,
+      background: `linear-gradient(135deg, ${doctor.colorCode || '#2563eb'}, ${doctor.colorCode || '#2563eb'}cc)`,
     }}
   >
     {doctor.doctorName
@@ -462,25 +502,27 @@ const DoctorAvatarSmall = ({ doctor }: { doctor: DoctorForBooking }) => {
     .toUpperCase();
 
   return (
-    <div className="flex flex-col items-center space-y-1">
+    <div className="flex w-[72px] flex-col items-center gap-1.5">
       <div className="relative">
         <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold text-white shadow-sm"
           style={{
-            background: `linear-gradient(135deg, ${doctor.colorCode || '#4F46E5'}, ${doctor.colorCode || '#4F46E5'}80)`,
+            background: `linear-gradient(135deg, ${doctor.colorCode || '#2563eb'}, ${doctor.colorCode || '#2563eb'}aa)`,
           }}
         >
           {initials}
         </div>
-        <div
-          className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center ${status.bg} ${status.color} text-xs border-2 border-white`}
-        >
-          {status.icon}
-        </div>
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white ${status.dot}`}
+        />
       </div>
-      <div className="text-xs text-center">
-        <div className="font-medium text-gray-700 truncate max-w-[60px]">Dr. {doctor.doctorName.split(' ')[0]}</div>
-        <div className={`text-xs px-1 py-0.5 rounded ${status.bg} ${status.color}`}>{status.text}</div>
+      <div className="w-full text-center">
+        <div className="truncate text-[11px] font-semibold text-slate-700">
+          Dr. {doctor.doctorName.split(' ')[0]}
+        </div>
+        <div className={`mt-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${status.bg} ${status.color}`}>
+          {status.text}
+        </div>
       </div>
     </div>
   );
@@ -498,61 +540,89 @@ const TimeSlotButton = ({
   const isAvailable = slotStatus.status === 'available';
   const hasDoctors = slot.assignedDoctors && slot.assignedDoctors.length > 0;
 
-  const bgClass = !hasDoctors
-    ? 'from-gray-100 to-gray-200 border-gray-300'
+  const containerClass = !hasDoctors
+    ? 'border-slate-200 bg-slate-50'
     : isAvailable
-      ? 'from-green-50 to-emerald-50 border-green-200 hover:from-green-100 hover:to-emerald-100 hover:border-green-300'
-      : 'from-red-50 to-pink-50 border-red-200';
+      ? 'border-emerald-200 bg-gradient-to-br from-white to-emerald-50 hover:border-emerald-300 hover:shadow-lg'
+      : 'border-rose-200 bg-gradient-to-br from-white to-rose-50';
 
   return (
     <button
       onClick={onClick}
       disabled={!isAvailable}
-      className={`group p-4 rounded-2xl border transition-all duration-300 text-center relative overflow-hidden bg-gradient-to-br ${bgClass} min-h-[160px] hover:shadow-xl hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed`}
+      className={`group relative min-h-[178px] rounded-2xl border p-4 text-left transition-all duration-200 ${containerClass} disabled:cursor-not-allowed disabled:opacity-80`}
     >
-      <div className="relative z-10">
-        <div className="text-lg font-bold text-gray-800 mb-3">
-          {utils.formatTime(slot.start)}
-          <div className="text-xs font-normal text-gray-500">{utils.formatTime(slot.end)}</div>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-base font-bold text-slate-900">{utils.formatTime(slot.start)}</div>
+          <div className="text-xs font-medium text-slate-500">{utils.formatTime(slot.end)}</div>
         </div>
 
-        <div className="flex flex-col items-center space-y-2">
-          {hasDoctors ? (
-            <>
-              <div className="flex flex-wrap justify-center gap-2">
-                {slot.assignedDoctors.slice(0, 4).map((doctor) => (
-                  <DoctorAvatarSmall key={doctor.doctorId} doctor={doctor} />
-                ))}
-                {slot.assignedDoctors.length > 4 && (
-                  <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-xs">
-                      +{slot.assignedDoctors.length - 4}
-                    </div>
-                    <div className="text-xs text-gray-500">more</div>
-                  </div>
-                )}
-              </div>
-
-              <div className="text-xs mt-2">
-                <div className="flex items-center justify-center gap-3">
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                    <span className="text-green-600">{slotStatus.availableDoctors} Available</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                    <span className="text-red-600">{slotStatus.bookedDoctors} Booked</span>
-                  </span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="text-red-500 font-semibold text-sm py-2">No Doctors</div>
-          )}
+        <div
+          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+            !hasDoctors
+              ? 'bg-slate-200 text-slate-700'
+              : isAvailable
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-rose-100 text-rose-700'
+          }`}
+        >
+          {!hasDoctors ? 'No Doctors' : isAvailable ? 'Available' : 'Booked Out'}
         </div>
       </div>
+
+      {hasDoctors ? (
+        <>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {slot.assignedDoctors.slice(0, 4).map((doctor) => (
+              <DoctorAvatarSmall key={doctor.doctorId} doctor={doctor} />
+            ))}
+
+            {slot.assignedDoctors.length > 4 && (
+              <div className="flex w-[72px] flex-col items-center gap-1.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700">
+                  +{slot.assignedDoctors.length - 4}
+                </div>
+                <div className="text-[10px] text-slate-500">more</div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-auto flex flex-wrap items-center gap-3 text-[11px] font-medium">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {slotStatus.availableDoctors} Available
+            </div>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-2.5 py-1 text-rose-700">
+              <span className="h-2 w-2 rounded-full bg-rose-500" />
+              {slotStatus.bookedDoctors} Booked
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-4 text-center text-sm font-medium text-slate-500">
+          No doctors assigned to this time slot.
+        </div>
+      )}
     </button>
   );
+};
+
+const StatusBanner = ({
+  tone,
+  children,
+}: {
+  tone: 'success' | 'error' | 'warning' | 'info';
+  children: React.ReactNode;
+}) => {
+  const styles = {
+    success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+    error: 'border-rose-200 bg-rose-50 text-rose-800',
+    warning: 'border-amber-200 bg-amber-50 text-amber-800',
+    info: 'border-blue-200 bg-blue-50 text-blue-800',
+  };
+
+  return <div className={`rounded-2xl border px-4 py-3.5 text-sm font-medium ${styles[tone]}`}>{children}</div>;
 };
 
 const BookingModal = ({
@@ -593,119 +663,173 @@ const BookingModal = ({
 
   const slotStart = localModal.slot?.start || '';
   const slotEnd = localModal.slot?.end || '';
-
-  // Determine if payment is required based on medical center's deposit setting
   const requiresPayment = (localModal.medicalCenter?.paymentSettings?.bookingDeposit ?? 0) > 0;
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" />
-      <div className="absolute inset-0 flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <GlassCard className="w-full sm:max-w-4xl h-[92vh] sm:h-auto sm:max-h-[90vh] rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl">
-          <ScrollableContainer className="h-full max-h-[92vh] sm:max-h-[90vh]">
-            <div className="p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-6">
+      <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 flex items-end justify-center sm:items-center p-0 sm:p-5">
+        <SurfaceCard className="h-[94vh] w-full overflow-hidden rounded-t-[28px] rounded-b-none sm:h-auto sm:max-h-[92vh] sm:max-w-5xl sm:rounded-[32px]">
+          <ScrollableContainer className="h-full max-h-[94vh] sm:max-h-[92vh]">
+            <div className="p-4 sm:p-6 lg:p-8">
+              <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-800">
-                    {localModal.step === 'select-doctor' ? '👨‍⚕️ Select Doctor' : '📅 Book Appointment'}
+                  <div className="mb-2 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                    {localModal.step === 'select-doctor' ? 'Step 1 of 2' : 'Step 2 of 2'}
+                  </div>
+                  <h3 className="text-2xl font-bold tracking-tight text-slate-900">
+                    {localModal.step === 'select-doctor' ? 'Select Doctor' : 'Book Appointment'}
                   </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {localModal.step === 'select-doctor'
+                      ? 'Choose an available doctor for this slot.'
+                      : 'Review details and complete your booking.'}
+                  </p>
                 </div>
-                <button onClick={onClose} disabled={bookingLoading} className="p-2 hover:bg-gray-100 rounded-lg">
-                  <Icon name="close" className="w-6 h-6 text-gray-500" />
+
+                <button
+                  onClick={onClose}
+                  disabled={bookingLoading}
+                  className="rounded-xl border border-slate-200 p-2.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                >
+                  <Icon name="close" className="h-5 w-5" />
                 </button>
               </div>
 
-              {patientInfo && (
-                <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-800">{patientInfo.name}</p>
-                      <p className="text-sm text-gray-600">{patientInfo.email}</p>
+              <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {patientInfo && (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-700">
+                      Patient
                     </div>
+                    <p className="text-base font-semibold text-slate-900">{patientInfo.name}</p>
+                    <p className="text-sm text-slate-600">{patientInfo.email}</p>
                   </div>
-                </div>
-              )}
+                )}
 
-              {localModal.medicalCenter && (
-                <div className="mb-6 p-4 bg-green-50 rounded-xl border border-green-100">
-                  <h4 className="font-bold text-gray-800 text-lg mb-3">
-                    {localModal.medicalCenter.facility_name}
-                  </h4>
-                  <div className="text-gray-600">
-                    <div>{utils.formatDate(localModal.date)}</div>
-                    <div>
-                      {utils.formatTime(slotStart)} - {utils.formatTime(slotEnd)}
+                {localModal.medicalCenter && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      Booking Details
                     </div>
-                    <div>{utils.formatAddress(localModal.medicalCenter)}</div>
+                    <h4 className="text-base font-semibold text-slate-900">
+                      {localModal.medicalCenter.facility_name}
+                    </h4>
+                    <div className="mt-2 space-y-1 text-sm text-slate-600">
+                      <div>{utils.formatDate(localModal.date)}</div>
+                      <div>
+                        {utils.formatTime(slotStart)} - {utils.formatTime(slotEnd)}
+                      </div>
+                      <div>{utils.formatAddress(localModal.medicalCenter)}</div>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {localModal.step === 'select-doctor' && (
-                <div className="mb-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {availableDoctorsList.map((doctor) => (
-                      <div
-                        key={doctor.doctorId}
-                        onClick={() => onSelectDoctor(doctor)}
-                        className={`p-4 rounded-xl border transition-all duration-300 hover:shadow-lg cursor-pointer ${
-                          localModal.selectedDoctor?.doctorId === doctor.doctorId
-                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                            : 'border-gray-200 bg-white hover:border-blue-300'
-                        }`}
-                      >
-                        <div className="flex items-start gap-4">
-                          <DoctorAvatar doctor={doctor} />
-                          <div className="flex-1">
-                            <h5 className="font-bold text-gray-800 text-lg">Dr. {doctor.doctorName}</h5>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                                {doctor.role || 'Doctor'}
-                              </span>
-                              {doctor.specialization?.slice(0, 2).map((spec, idx) => (
-                                <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                                  {spec}
-                                </span>
-                              ))}
+                <div className="space-y-5">
+                  {availableDoctorsList.length > 0 && (
+                    <div>
+                      <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                        Available Doctors
+                      </h4>
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        {availableDoctorsList.map((doctor) => (
+                          <button
+                            key={doctor.doctorId}
+                            type="button"
+                            onClick={() => onSelectDoctor(doctor)}
+                            className={`w-full rounded-2xl border p-4 text-left transition ${
+                              localModal.selectedDoctor?.doctorId === doctor.doctorId
+                                ? 'border-blue-500 bg-blue-50 ring-4 ring-blue-100'
+                                : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-start gap-4">
+                              <DoctorAvatar doctor={doctor} />
+                              <div className="min-w-0 flex-1">
+                                <h5 className="truncate text-lg font-bold text-slate-900">
+                                  Dr. {doctor.doctorName}
+                                </h5>
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                    {doctor.role || 'Doctor'}
+                                  </span>
+                                  {doctor.specialization?.slice(0, 2).map((spec, idx) => (
+                                    <span
+                                      key={idx}
+                                      className="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700"
+                                    >
+                                      {spec}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {bookedDoctorsList.length > 0 && (
+                    <div>
+                      <h4 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                        Unavailable Doctors
+                      </h4>
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        {bookedDoctorsList.map((doctor) => (
+                          <div
+                            key={doctor.doctorId}
+                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4 opacity-70"
+                          >
+                            <div className="flex items-start gap-4">
+                              <DoctorAvatar doctor={doctor} />
+                              <div className="min-w-0 flex-1">
+                                <h5 className="truncate text-lg font-bold text-slate-700">
+                                  Dr. {doctor.doctorName}
+                                </h5>
+                                <div className="mt-2 inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+                                  Already Booked
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-
-                    {bookedDoctorsList.map((doctor) => (
-                      <div key={doctor.doctorId} className="p-4 rounded-xl border border-gray-200 bg-gray-50 opacity-60">
-                        <div className="flex items-start gap-4">
-                          <DoctorAvatar doctor={doctor} />
-                          <div className="flex-1">
-                            <h5 className="font-bold text-gray-600 text-lg">Dr. {doctor.doctorName}</h5>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {localModal.step === 'booking-details' && localModal.selectedDoctor && (
                 <div className="space-y-6">
-                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                    <div className="flex items-center justify-between">
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <h5 className="font-bold text-gray-800">Dr. {localModal.selectedDoctor.doctorName}</h5>
+                        <div className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                          Selected Doctor
+                        </div>
+                        <h5 className="text-lg font-bold text-slate-900">
+                          Dr. {localModal.selectedDoctor.doctorName}
+                        </h5>
                       </div>
+
                       <button
                         onClick={onBackToDoctorSelection}
                         disabled={bookingLoading}
-                        className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                        className="inline-flex items-center gap-2 self-start rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
                       >
-                        <Icon name="arrowLeft" className="w-4 h-4" /> Change Doctor
+                        <Icon name="arrowLeft" className="h-4 w-4" />
+                        Change Doctor
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Reason for Visit *</label>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">
+                      Reason for Visit *
+                    </label>
                     <textarea
                       value={localModal.reasonForVisit}
                       onChange={(e) =>
@@ -715,16 +839,18 @@ const BookingModal = ({
                           symptoms: e.target.value,
                         })
                       }
-                      className={formControlClass}
-                      rows={4}
+                      className={`${formControlClass} min-h-[140px] resize-y`}
+                      rows={5}
                       placeholder="Please describe the reason for your visit..."
                       disabled={bookingLoading}
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Specialization</label>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Preferred Specialization
+                      </label>
                       <select
                         value={localModal.preferredSpecialization}
                         onChange={(e) =>
@@ -742,7 +868,9 @@ const BookingModal = ({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Consultation Type</label>
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Consultation Type
+                      </label>
                       <select
                         value={localModal.consultationType}
                         onChange={(e) =>
@@ -760,20 +888,26 @@ const BookingModal = ({
                     </div>
                   </div>
 
-                  {bookingError && <p className="text-red-700 font-medium">{bookingError}</p>}
+                  {bookingError && <StatusBanner tone="error">{bookingError}</StatusBanner>}
 
-                  <div className="flex justify-end gap-4 pt-4 border-t border-gray-200">
-                    <button onClick={onClose} disabled={bookingLoading} className="px-6 py-3 text-gray-700 font-medium rounded-xl hover:bg-gray-100">
+                  <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
+                    <button
+                      onClick={onClose}
+                      disabled={bookingLoading}
+                      className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
                       Cancel
                     </button>
+
                     <button
                       onClick={handleBook}
                       disabled={bookingLoading || !localModal.reasonForVisit}
-                      className="px-8 py-3 bg-green-500 text-white font-medium rounded-xl hover:bg-green-600 flex items-center gap-2"
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {bookingLoading ? (
                         <>
-                          <Icon name="spinner" className="animate-spin h-5 w-5" /> Processing...
+                          <Icon name="spinner" className="h-5 w-5 animate-spin" />
+                          Processing...
                         </>
                       ) : requiresPayment ? (
                         <>Proceed to Payment</>
@@ -786,7 +920,7 @@ const BookingModal = ({
               )}
             </div>
           </ScrollableContainer>
-        </GlassCard>
+        </SurfaceCard>
       </div>
     </div>
   );
@@ -849,12 +983,12 @@ function BookingPageClient() {
     }
   }, [searchParams, patientInfo, handlePaymentCallback]);
 
-  // Only show expiry timer for appointments that require payment and are pending
   const pendingPaidAppointment = appointments.find(
     (appt) =>
       appt.payment_required === true &&
       (appt.status === 'pending' || appt.payment_status === 'pending')
   );
+
   const expiryTime = pendingPaidAppointment
     ? new Date(pendingPaidAppointment.created_at).getTime() + 15 * 60 * 1000
     : null;
@@ -933,7 +1067,7 @@ function BookingPageClient() {
       created_at: '',
       updated_at: '',
       __v: 0,
-      paymentSettings: { bookingDeposit: 0 }, // default to 0; will be updated from backend if needed
+      paymentSettings: { bookingDeposit: 0 },
     }),
     []
   );
@@ -1001,41 +1135,39 @@ function BookingPageClient() {
   const scheduleDays = getScheduleDays();
 
   return (
-    <GradientBackground>
+    <SoftBackground>
       <ToastContainer position="top-right" autoClose={5000} transition={Slide} />
 
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-gray-200">
-        <div className="px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3 min-w-0">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-md">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 onClick={() => router.push('/entry')}
-                className="p-2 hover:bg-gray-100 rounded-xl shrink-0"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50"
               >
-                <Icon name="arrowLeft" className="w-5 h-5 text-gray-600" />
+                <Icon name="arrowLeft" className="h-5 w-5" />
               </button>
 
               <div className="min-w-0">
-                <h1 className="text-lg sm:text-xl font-bold text-gray-800 truncate">
+                <h1 className="truncate text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
                   Book Appointment
                 </h1>
-                <p className="text-sm text-gray-500 truncate">
+                <p className="truncate text-sm text-slate-500">
                   Schedule your medical appointment
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              {bookingStatus !== 'idle' && (
-                <PaymentStatusIndicator status={bookingStatus} />
-              )}
+              {bookingStatus !== 'idle' && <PaymentStatusIndicator status={bookingStatus} />}
 
               {patientInfo && appointments.length > 0 && (
                 <button
                   onClick={() => setShowAppointments(!showAppointments)}
-                  className="px-4 py-2 bg-blue-100 text-blue-700 font-medium rounded-xl hover:bg-blue-200 flex items-center gap-2 text-sm"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
                 >
-                  <Icon name="calendar" className="w-4 h-4" />
+                  <Icon name="calendar" className="h-4 w-4" />
                   Appointments ({appointments.length})
                 </button>
               )}
@@ -1044,118 +1176,182 @@ function BookingPageClient() {
         </div>
       </header>
 
-      <main className="px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
-        {expiryTime && expiryTime > Date.now() && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-            <p className="text-amber-700 text-sm">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="space-y-6">
+          {expiryTime && expiryTime > Date.now() && (
+            <StatusBanner tone="warning">
               Complete payment to confirm your appointment. Expires in{' '}
               {Math.ceil((expiryTime - Date.now()) / 60000)} minutes.
-            </p>
-          </div>
-        )}
+            </StatusBanner>
+          )}
 
-        {successMessage && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl">
-            <p className="text-green-700 text-sm">{successMessage}</p>
-          </div>
-        )}
+          {successMessage && <StatusBanner tone="success">{successMessage}</StatusBanner>}
 
-        {bookingError && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
-            <p className="text-red-700 text-sm">{bookingError}</p>
-          </div>
-        )}
+          {bookingError && <StatusBanner tone="error">{bookingError}</StatusBanner>}
 
-        {scheduleLoading && <div className="text-center py-16">Loading Schedule...</div>}
+          {scheduleLoading && (
+            <SurfaceCard className="p-10 sm:p-14">
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+                <p className="text-sm font-medium text-slate-600">Loading schedule...</p>
+              </div>
+            </SurfaceCard>
+          )}
 
-        {error && !scheduleLoading && (
-          <GlassCard className="p-8 mb-8">
-            <div className="text-center">{error}</div>
-          </GlassCard>
-        )}
+          {error && !scheduleLoading && (
+            <SurfaceCard className="p-8">
+              <div className="text-center text-sm font-medium text-rose-700">{error}</div>
+            </SurfaceCard>
+          )}
 
-        {!scheduleLoading && !error && schedule && patientInfo && (
-          <>
-            <GlassCard className="mb-8 p-6 md:p-8">
-              <div className="space-y-6">
-                <div>
-                  <div className="text-sm font-semibold text-gray-600 mb-3">Date Range:</div>
-                  <div className="flex flex-wrap gap-2">
-                    {dateRangeButtons.map((range) => (
-                      <button
-                        key={range.id}
-                        onClick={() => dispatch(bookingActions.setSelectedDateRange(range.id))}
-                        className={`px-5 py-2.5 rounded-xl text-sm transition-all duration-300 flex items-center gap-2 ${
-                          selectedDateRange === range.id
-                            ? 'bg-blue-500 text-white shadow-lg'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        <span>{range.icon}</span>
-                        {range.label}
-                      </button>
-                    ))}
+          {!scheduleLoading && !error && schedule && patientInfo && (
+            <>
+              <SurfaceCard className="p-5 sm:p-6 lg:p-7">
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <div className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                      Date Range
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                      {dateRangeButtons.map((range) => (
+                        <button
+                          key={range.id}
+                          onClick={() => dispatch(bookingActions.setSelectedDateRange(range.id))}
+                          className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                            selectedDateRange === range.id
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span>{range.icon}</span>
+                          <span>{range.label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </GlassCard>
+              </SurfaceCard>
 
-            <GlassCard className="p-6 md:p-8">
-              <ScrollableContainer className="max-h-[600px]">
-                <div className="space-y-8 pr-2">
-                  {scheduleDays.length > 0 ? (
-                    scheduleDays.map((day) => (
-                      <div
-                        key={day.date}
-                        className={`rounded-2xl border ${day.isWorking ? 'bg-gray-50 border-gray-200' : 'bg-red-50 border-red-200'}`}
-                      >
-                        <div className="p-6 border-b border-gray-200">
-                          <div className="flex items-center gap-4 mb-3">
-                            <h3 className="text-xl font-bold text-gray-800">{day.dayName}</h3>
-                            <span
-                              className={`px-4 py-1.5 rounded-full text-sm font-medium ${
-                                day.isWorking ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              {day.isWorking ? 'OPEN' : 'CLOSED'}
-                            </span>
+              {showAppointments && appointments.length > 0 && (
+                <SurfaceCard className="p-5 sm:p-6 lg:p-7">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">Your Appointments</h2>
+                      <p className="text-sm text-slate-500">This section keeps the same data and behavior.</p>
+                    </div>
+                  </div>
+
+                  <ScrollableContainer className="max-h-[360px]">
+                    <div className="space-y-3">
+                      {appointments.map((appointment) => (
+                        <div
+                          key={appointment._id}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                        >
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-slate-900">
+                                {appointment.appointment_id}
+                              </div>
+                              <div className="mt-1 text-sm text-slate-600">
+                                {utils.formatDate(appointment.date)}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
+                                {appointment.status}
+                              </span>
+                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                                {appointment.payment_status}
+                              </span>
+                            </div>
                           </div>
                         </div>
-
-                        {day.isWorking && (
-                          <div className="p-6">
-                            {day.timeSlots?.length > 0 ? (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                                {day.timeSlots.slice(0, 14).map((slot) => (
-                                  <TimeSlotButton
-                                    key={slot.id}
-                                    slot={slot}
-                                    day={day}
-                                    onClick={() => handleSlotClick(day.date, slot)}
-                                  />
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center py-10 bg-gray-50 rounded-xl">
-                                <p className="text-gray-500">No time slots available for this day.</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-200">
-                      <p className="text-gray-500 max-w-md mx-auto">
-                        This medical center hasn&apos;t set up their schedule for the selected period.
-                      </p>
+                      ))}
                     </div>
-                  )}
-                </div>
-              </ScrollableContainer>
-            </GlassCard>
-          </>
-        )}
+                  </ScrollableContainer>
+                </SurfaceCard>
+              )}
+
+              <SurfaceCard className="p-4 sm:p-6 lg:p-7">
+                <ScrollableContainer className="max-h-[72vh]">
+                  <div className="space-y-6 pr-1">
+                    {scheduleDays.length > 0 ? (
+                      scheduleDays.map((day) => (
+                        <div
+                          key={day.date}
+                          className={`overflow-hidden rounded-3xl border ${
+                            day.isWorking
+                              ? 'border-slate-200 bg-white'
+                              : 'border-rose-200 bg-rose-50'
+                          }`}
+                        >
+                          <div className="border-b border-slate-200 px-4 py-4 sm:px-6">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div>
+                                <h3 className="text-lg font-bold text-slate-900 sm:text-xl">
+                                  {day.dayName}
+                                </h3>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {utils.formatDate(day.date)}
+                                </p>
+                              </div>
+
+                              <span
+                                className={`inline-flex w-fit items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide ${
+                                  day.isWorking
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-rose-100 text-rose-700'
+                                }`}
+                              >
+                                <span
+                                  className={`h-2.5 w-2.5 rounded-full ${
+                                    day.isWorking ? 'bg-emerald-500' : 'bg-rose-500'
+                                  }`}
+                                />
+                                {day.isWorking ? 'Open' : 'Closed'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {day.isWorking && (
+                            <div className="p-4 sm:p-6">
+                              {day.timeSlots?.length > 0 ? (
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                                  {day.timeSlots.slice(0, 14).map((slot) => (
+                                    <TimeSlotButton
+                                      key={slot.id}
+                                      slot={slot}
+                                      day={day}
+                                      onClick={() => handleSlotClick(day.date, slot)}
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+                                  <p className="text-sm font-medium text-slate-500">
+                                    No time slots available for this day.
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-10 text-center">
+                        <p className="mx-auto max-w-md text-sm font-medium text-slate-500">
+                          This medical center hasn&apos;t set up their schedule for the selected period.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollableContainer>
+              </SurfaceCard>
+            </>
+          )}
+        </div>
       </main>
 
       {bookingModal.isOpen && patientInfo && (
@@ -1172,7 +1368,7 @@ function BookingPageClient() {
           onBackToDoctorSelection={() => dispatch(bookingActions.handleBackToDoctorSelectionThunk())}
         />
       )}
-    </GradientBackground>
+    </SoftBackground>
   );
 }
 
@@ -1180,10 +1376,10 @@ function BookingPageClient() {
 
 function BookingPageFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="text-center">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading booking...</p>
+        <div className="mx-auto mb-4 h-12 w-12 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+        <p className="text-sm font-medium text-slate-600">Loading booking...</p>
       </div>
     </div>
   );

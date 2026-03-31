@@ -4,6 +4,7 @@ import axios from 'axios';
 // ==================== TYPES ====================
 
 export type Address = {
+  formatted_address: string;
   line1: string;
   line2?: string;
   city: string;
@@ -68,6 +69,9 @@ export type Branch = {
 };
 
 export type MedicalCenter = {
+ 
+  
+  distance: null;
   paymentSettings: PaymentSettings | undefined;
   
   _id: string;

@@ -973,44 +973,10 @@ export default function DoctorAppointments() {
                 Created: {new Date(appointment.createdAt).toLocaleDateString()}
               </Badge>
 
-              <Link
-                href={`/patient-files/${patientFileId}`}
-                className="px-3 py-1.5 text-sm bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl hover:bg-indigo-100 transition-colors font-medium flex items-center space-x-2"
-              >
-                <FolderOpen className="w-4 h-4" />
-                <span>Open Patient File</span>
-              </Link>
+              
             </div>
 
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => {
-                  dispatch(setSelectedAppointment(appointment));
-                  dispatch(setNewDate(getEffectiveDate(appointment)));
-                  dispatch(setNewTime(getEffectiveTime(appointment)));
-                  dispatch(setShowRescheduleModal(true));
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm flex items-center space-x-2"
-              >
-                <Edit className="w-4 h-4" />
-                <span>Reschedule</span>
-              </button>
-
-              <button
-                onClick={() =>
-                  dispatch(
-                    cancelAppointment({
-                      bookingId: appointment._id,
-                      reason: 'Cancelled by medical center',
-                    }),
-                  )
-                }
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium text-sm flex items-center space-x-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Cancel</span>
-              </button>
-            </div>
+            
           </div>
         </div>
       </ModernCard>
@@ -1166,174 +1132,43 @@ export default function DoctorAppointments() {
           </div>
         </div>
 
-        {/* Main Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            title="Today's Appointments"
-            value={stats.today}
-            icon={<CalendarCheck className="w-6 h-6" />}
-            color="blue"
-            description={`${todaysAppointments.length} filtered`}
-          />
-          <StatCard
-            title="Tomorrow"
-            value={stats.tomorrow}
-            icon={<CalendarDays className="w-6 h-6" />}
-            color="green"
-            description={`${tomorrowsAppointments.length} filtered`}
-          />
-          <StatCard
-            title="This Week"
-            value={stats.week}
-            icon={<Calendar className="w-6 h-6" />}
-            color="purple"
-            description={`${upcomingAppointments.length} upcoming`}
-          />
-          <StatCard
-            title="Confirmation Rate"
-            value={`${statsWithBreakdown.confirmationRate}%`}
-            icon={<TrendingUp className="w-6 h-6" />}
-            color="orange"
-            description={`${statsWithBreakdown.confirmed} confirmed of ${statsWithBreakdown.total}`}
-          />
-        </div>
+       
 
-        {/* Revenue Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            title="Money Made Today"
-            value={formatCurrency(todayRevenue.totalPaid)}
-            icon={<DollarSign className="w-6 h-6" />}
-            color="green"
-            description={`${todayRevenue.successfulPayments} successful payments`}
-          />
-          <StatCard
-            title="Tomorrow Expected"
-            value={formatCurrency(tomorrowRevenue.totalExpected)}
-            icon={<Wallet className="w-6 h-6" />}
-            color="blue"
-            description={`${tomorrowRevenue.pendingPayments} pending payments`}
-          />
-          <StatCard
-            title="Upcoming Expected"
-            value={formatCurrency(upcomingRevenue.totalExpected)}
-            icon={<Receipt className="w-6 h-6" />}
-            color="purple"
-            description={`${upcomingRevenue.successfulPayments} paid already`}
-          />
-          <StatCard
-            title="Total Collected"
-            value={formatCurrency(totalRevenue.totalPaid)}
-            icon={<CreditCard className="w-6 h-6" />}
-            color="orange"
-            description={`${totalRevenue.failedPayments} failed payments`}
-          />
-        </div>
-
-        {/* Advanced Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
-          <div className="bg-white/50 backdrop-blur-sm rounded-xl p-3 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500">Pending</p>
-                <p className="text-lg font-bold text-amber-600">
-                  {statsWithBreakdown.pending}
-                </p>
-              </div>
-              <Clock className="w-5 h-5 text-amber-400" />
-            </div>
-          </div>
-
-          <div className="bg-white/50 backdrop-blur-sm rounded-xl p-3 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500">Completed</p>
-                <p className="text-lg font-bold text-emerald-600">
-                  {statsWithBreakdown.completed}
-                </p>
-              </div>
-              <Check className="w-5 h-5 text-emerald-400" />
-            </div>
-          </div>
-
-          <div className="bg-white/50 backdrop-blur-sm rounded-xl p-3 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500">Cancelled</p>
-                <p className="text-lg font-bold text-red-600">
-                  {statsWithBreakdown.cancelled}
-                </p>
-              </div>
-              <X className="w-5 h-5 text-red-400" />
-            </div>
-          </div>
-
-          <div className="bg-white/50 backdrop-blur-sm rounded-xl p-3 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500">Urgent Cases</p>
-                <p className="text-lg font-bold text-red-600">
-                  {
-                    appointments.filter(
-                      (a: Booking) => a.urgency === 'urgent' || a.urgency === 'emergency',
-                    ).length
-                  }
-                </p>
-              </div>
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-            </div>
-          </div>
-
-          <div className="bg-white/50 backdrop-blur-sm rounded-xl p-3 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500">Deposits</p>
-                <p className="text-lg font-bold text-blue-600">
-                  {formatCurrency(totalRevenue.totalDeposits)}
-                </p>
-              </div>
-              <Wallet className="w-5 h-5 text-blue-400" />
-            </div>
-          </div>
-
-          <div className="bg-white/50 backdrop-blur-sm rounded-xl p-3 border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500">Platform Fees</p>
-                <p className="text-lg font-bold text-purple-600">
-                  {formatCurrency(totalRevenue.totalPlatformFees)}
-                </p>
-              </div>
-              <BarChart3 className="w-5 h-5 text-purple-400" />
-            </div>
-          </div>
-        </div>
+       
+       
 
         {/* Filters & Search */}
         <ModernCard className="p-4 mb-6">
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search patients, doctors, conditions, email, phone, appointment ID..."
-                  value={searchTerm}
-                  onChange={(e) => dispatch(setSearchTerm(e.target.value))}
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
+             <div className="flex-1 relative">
+  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
 
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors flex items-center space-x-2 group"
-              >
-                <Filter className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-                <span>Filters</span>
-                {Object.values(filters).some((f) => f) && (
-                  <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
-                )}
-              </button>
+  <input
+    type="text"
+    placeholder="Search patients, doctors, conditions, email, phone, appointment ID..."
+    value={searchTerm}
+    onChange={(e) => dispatch(setSearchTerm(e.target.value))}
+    className="w-full pl-10 pr-4 py-3 bg-white border border-gray-300 rounded-xl 
+               text-gray-900 placeholder:text-gray-400
+               focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+  />
+</div>
+
+            <button
+  onClick={() => setShowFilters(!showFilters)}
+  className="px-4 py-3 border border-gray-300 bg-white text-gray-900 
+             rounded-xl hover:bg-gray-100 transition-colors 
+             flex items-center space-x-2 group"
+>
+  <Filter className="w-4 h-4 text-gray-700 group-hover:rotate-90 transition-transform" />
+
+  <span className="text-sm font-medium">Filters</span>
+
+  {Object.values(filters).some((f) => f) && (
+    <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+  )}
+</button>
 
               <button
                 onClick={() => dispatch(fetchAppointments({}))}
@@ -1420,37 +1255,7 @@ export default function DoctorAppointments() {
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <Bell className="w-4 h-4" />
-                <span>
-                  Showing {filteredAppointments.length} of {appointments.length}{' '}
-                  appointments
-                </span>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => {
-                    dispatch(setSearchTerm(''));
-                    dispatch(clearFilters());
-                  }}
-                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  Clear all
-                </button>
-
-                <button className="px-3 py-1.5 bg-blue-50 text-blue-600 text-sm rounded-lg hover:bg-blue-100 transition-colors flex items-center space-x-1">
-                  <Download className="w-3 h-3" />
-                  <span>Export</span>
-                </button>
-
-                <button className="px-3 py-1.5 bg-emerald-50 text-emerald-600 text-sm rounded-lg hover:bg-emerald-100 transition-colors flex items-center space-x-1">
-                  <BarChart3 className="w-3 h-3" />
-                  <span>Analytics</span>
-                </button>
-              </div>
-            </div>
+            
           </div>
         </ModernCard>
 
@@ -1516,41 +1321,7 @@ export default function DoctorAppointments() {
           </div>
         </div>
 
-        {/* Active tab revenue summary */}
-        <ModernCard className="p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div>
-              <p className="text-xs text-gray-500">Collected</p>
-              <p className="text-lg font-bold text-emerald-600">
-                {formatCurrency(revenueForActiveTab.totalPaid)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Expected</p>
-              <p className="text-lg font-bold text-blue-600">
-                {formatCurrency(revenueForActiveTab.totalExpected)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Consultation Total</p>
-              <p className="text-lg font-bold text-gray-900">
-                {formatCurrency(revenueForActiveTab.totalConsultation)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Deposits</p>
-              <p className="text-lg font-bold text-purple-600">
-                {formatCurrency(revenueForActiveTab.totalDeposits)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500">Successful Payments</p>
-              <p className="text-lg font-bold text-orange-600">
-                {revenueForActiveTab.successfulPayments}
-              </p>
-            </div>
-          </div>
-        </ModernCard>
+        
 
         {/* Appointments List */}
         <div className="space-y-4">
@@ -1665,117 +1436,7 @@ export default function DoctorAppointments() {
           </div>
         )}
 
-        {/* Footer Stats */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                Appointment Summary
-              </h4>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Total Appointments</span>
-                  <span className="font-semibold">{appointments.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Pending Approval</span>
-                  <span className="font-semibold text-amber-600">
-                    {statsWithBreakdown.pending}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Completed Today</span>
-                  <span className="font-semibold text-emerald-600">
-                    {
-                      todaysAppointments.filter((a: Booking) => a.status === 'completed')
-                        .length
-                    }
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">Revenue Summary</h4>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Collected Today</span>
-                  <span className="font-semibold text-emerald-600">
-                    {formatCurrency(todayRevenue.totalPaid)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Expected This Week</span>
-                  <span className="font-semibold text-blue-600">
-                    {formatCurrency(upcomingRevenue.totalExpected)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Total Collected</span>
-                  <span className="font-semibold text-purple-600">
-                    {formatCurrency(totalRevenue.totalPaid)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">
-                Medical Center Info
-              </h4>
-              <div className="space-y-2">
-                {medicalCenterSettings && (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Center Name</span>
-                      <span className="font-semibold truncate max-w-[150px]">
-                        {medicalCenterSettings.facility_name}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Active Doctors</span>
-                      <span className="font-semibold">
-                        {medicalCenterSettings.doctors?.length || 0}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Center ID</span>
-                      <span className="font-semibold font-mono">
-                        {medicalCenterId?.slice(-8)}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">System Status</h4>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Last Updated</span>
-                  <span className="font-semibold">
-                    {new Date().toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Session Status</span>
-                  <span className="flex items-center">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></div>
-                    <span className="font-semibold text-emerald-600">Active</span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Data Version</span>
-                  <span className="font-semibold font-mono">v1.0.0</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+       
       </main>
     </div>
   );

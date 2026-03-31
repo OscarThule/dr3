@@ -7,31 +7,38 @@ import {
   setIsRegistered,
   setError,
   setSuccess,
-  addPractitioner,
-  removePractitioner,
   updateFormField,
   updateAddressField,
   updateBankField,
-  updatePractitionerField,
   updateLoginField,
-  getCurrentLocation,
   registerMedicalCenter,
   loginUser,
   forgotPassword,
   updateForgotPasswordField,
 } from '@/app/redux/slices/medicalSlice';
-import type { Practitioner } from '@/app/redux/slices/medicalSlice';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useLoadScript, GoogleMap, Marker } from '@react-google-maps/api';
+import usePlacesAutocomplete, {
+  getGeocode,
+  getLatLng,
+} from 'use-places-autocomplete';
+
+// --- Google Maps configuration ---
+const libraries: 'places'[] = ['places'];
+const mapContainerStyle = { width: '100%', height: '300px' };
+const defaultCenter = { lat: -25.746111, lng: 28.188056 }; // Pretoria, South Africa
 
 export default function MedicalCenterPortal() {
   const dispatch = useDispatch<AppDispatch>();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Get the entire medicalCenter state first to avoid destructuring issues
+  // Local loading state for current location
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  // Redux state
   const medicalCenterState = useSelector((state: RootState) => state.medicalCenter);
 
-  // Safe destructuring with fallback values
   const {
     isRegistered = false,
     isLoading = false,
@@ -47,11 +54,17 @@ export default function MedicalCenterPortal() {
       phone: '',
       address: {
         line1: '',
+        line2: '',
         city: '',
         province: '',
         postal: '',
+        full_address: '',
+        formatted_address: '',
+        place_id: '',
         lat: null,
         lng: null,
+        location_source: 'address',
+        is_location_verified: false,
       },
       practitioners: [],
       bankDetails: {
@@ -61,102 +74,181 @@ export default function MedicalCenterPortal() {
         account_type: 'current',
       },
     },
-    newPractitioner = {
-      full_name: '',
-      role: 'doctor',
-      professional_license_number: '',
-      license_type: 'HPCSA',
-      license_doc_url: '',
-      contact_email: '',
-      contact_phone: '',
-      verification_status: 'unverified' as const,
-    },
     loginData = {
       email: '',
       password: '',
     },
     forgotPasswordData = { email: '' },
-    isGettingLocation = false,
-    locationError = '',
   } = medicalCenterState || {};
 
-  const facilityTypes = [
-    { value: 'surgery', label: '🏥 Surgery', description: 'Specialized surgical facility' },
-    { value: 'clinic', label: '🩺 Clinic', description: 'General medical clinic' },
-    { value: 'hospital', label: '🏨 Hospital', description: 'Full-service hospital' },
-    { value: 'community_health', label: '🌍 Community Health', description: 'Community healthcare center' },
-    { value: 'mobile_unit', label: '🚐 Mobile Unit', description: 'Mobile medical service' },
-    { value: 'other', label: '⚕️ Other', description: 'Other medical facility type' },
-  ];
+  // --- Google Maps API loading ---
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+    libraries,
+  });
 
-  const practitionerRoles = [
-    { value: 'doctor', label: '👨‍⚕️ Doctor' },
-    { value: 'nurse', label: '👩‍⚕️ Nurse' },
-    { value: 'clinical_manager', label: '📋 Clinical Manager' },
-    { value: 'admin', label: '💼 Administrator' },
-  ];
+  // --- Place Autocomplete logic (initialized after script loads) ---
+  const {
+    ready,
+    init,
+    value: autocompleteValue,
+    setValue: setAutocompleteValue,
+    suggestions: { status, data },
+    clearSuggestions,
+  } = usePlacesAutocomplete({
+    initOnMount: false, // Wait until Google script is loaded
+    debounce: 300,
+    requestOptions: {
+      componentRestrictions: { country: 'za' },
+      // types: ['address'], // Removed to allow broader matching
+    },
+  });
 
-  const licenseTypes = [
-    { value: 'HPCSA', label: 'HPCSA' },
-    { value: 'SANC', label: 'SANC' },
-    { value: 'other', label: 'Other Council' },
-  ];
+  // Initialize autocomplete after Maps API is loaded
+  useEffect(() => {
+    if (isLoaded) {
+      init();
+    }
+  }, [isLoaded, init]);
 
-  const accountTypes = [
-    { value: 'current', label: 'Current Account' },
-    { value: 'savings', label: 'Savings Account' },
-  ];
+  // Handle place selection from dropdown
+  const handlePlaceSelect = async (placeId: string) => {
+    const selected = data.find((place) => place.place_id === placeId);
+    if (!selected) return;
 
-  const provinces = [
-    'Eastern Cape',
-    'Free State',
-    'Gauteng',
-    'KwaZulu-Natal',
-    'Limpopo',
-    'Mpumalanga',
-    'North West',
-    'Northern Cape',
-    'Western Cape',
-  ];
+    setAutocompleteValue(selected.description, false);
+    clearSuggestions();
 
-  // Enhanced Handlers with Error Handling
-  const handleGetCurrentLocation = () => {
-    dispatch(getCurrentLocation());
+    try {
+      const results = await getGeocode({ placeId: selected.place_id });
+      const { lat, lng } = await getLatLng(results[0]);
+
+      // Extract address components
+      const addressComponents = results[0].address_components;
+      let streetNumber = '';
+      let route = '';
+      let city = '';
+      let province = '';
+      let postalCode = '';
+
+      for (const comp of addressComponents) {
+        const types = comp.types;
+        if (types.includes('street_number')) streetNumber = comp.long_name;
+        if (types.includes('route')) route = comp.long_name;
+        if (types.includes('locality')) city = comp.long_name;
+        if (types.includes('administrative_area_level_1')) province = comp.long_name;
+        if (types.includes('postal_code')) postalCode = comp.long_name;
+      }
+
+      const line1 = streetNumber && route ? `${streetNumber} ${route}` : route;
+      const formattedAddress = results[0].formatted_address;
+
+      // Update Redux address state
+      dispatch(updateAddressField({ field: 'line1', value: line1 }));
+      dispatch(updateAddressField({ field: 'line2', value: '' }));
+      dispatch(updateAddressField({ field: 'city', value: city }));
+      dispatch(updateAddressField({ field: 'province', value: province }));
+      dispatch(updateAddressField({ field: 'postal', value: postalCode }));
+      dispatch(updateAddressField({ field: 'full_address', value: formattedAddress }));
+      dispatch(updateAddressField({ field: 'formatted_address', value: formattedAddress }));
+      dispatch(updateAddressField({ field: 'place_id', value: selected.place_id }));
+      dispatch(updateAddressField({ field: 'lat', value: lat }));
+      dispatch(updateAddressField({ field: 'lng', value: lng }));
+      dispatch(updateAddressField({ field: 'location_source', value: 'autocomplete' }));
+      dispatch(updateAddressField({ field: 'is_location_verified', value: true }));
+    } catch (error) {
+      console.error('Error getting geocode:', error);
+      dispatch(setError('Failed to get address details. Please try again.'));
+    }
   };
 
+  // Manual address search (search button or Enter key)
+  const handleManualAddressSearch = async () => {
+    if (!autocompleteValue.trim()) {
+      dispatch(setError('Please enter an address'));
+      return;
+    }
+
+    try {
+      const results = await getGeocode({
+        address: autocompleteValue,
+        componentRestrictions: { country: 'ZA' },
+      });
+
+      if (!results.length) {
+        dispatch(setError('Address not found. Please enter a more complete address.'));
+        return;
+      }
+
+      const firstResult = results[0];
+      const { lat, lng } = await getLatLng(firstResult);
+
+      // Extract address components
+      const addressComponents = firstResult.address_components;
+      let streetNumber = '';
+      let route = '';
+      let city = '';
+      let province = '';
+      let postalCode = '';
+
+      for (const comp of addressComponents) {
+        const types = comp.types;
+        if (types.includes('street_number')) streetNumber = comp.long_name;
+        if (types.includes('route')) route = comp.long_name;
+        if (types.includes('locality')) city = comp.long_name;
+        if (types.includes('administrative_area_level_1')) province = comp.long_name;
+        if (types.includes('postal_code')) postalCode = comp.long_name;
+      }
+
+      const line1 = streetNumber && route ? `${streetNumber} ${route}` : route;
+      const formattedAddress = firstResult.formatted_address;
+
+      // Update Redux address state
+      dispatch(updateAddressField({ field: 'line1', value: line1 }));
+      dispatch(updateAddressField({ field: 'line2', value: '' }));
+      dispatch(updateAddressField({ field: 'city', value: city }));
+      dispatch(updateAddressField({ field: 'province', value: province }));
+      dispatch(updateAddressField({ field: 'postal', value: postalCode }));
+      dispatch(updateAddressField({ field: 'full_address', value: formattedAddress }));
+      dispatch(updateAddressField({ field: 'formatted_address', value: formattedAddress }));
+      dispatch(updateAddressField({ field: 'place_id', value: firstResult.place_id || '' }));
+      dispatch(updateAddressField({ field: 'lat', value: lat }));
+      dispatch(updateAddressField({ field: 'lng', value: lng }));
+      dispatch(updateAddressField({ field: 'location_source', value: 'manual_search' }));
+      dispatch(updateAddressField({ field: 'is_location_verified', value: true }));
+
+      clearSuggestions();
+      setAutocompleteValue(formattedAddress, false);
+      dispatch(setSuccess('Address found and verified.'));
+    } catch (error) {
+      console.error('Manual address search error:', error);
+      dispatch(setError('Could not verify this address. Please refine it.'));
+    }
+  };
+
+  // Sync autocomplete input with Redux when address changes
+  useEffect(() => {
+    if (formData.address.formatted_address) {
+      setAutocompleteValue(formData.address.formatted_address, false);
+    }
+  }, [formData.address.formatted_address, setAutocompleteValue]);
+
+  // --- Current location handler with high accuracy and reverse geocoding ---
+ 
+
+  // --- Handlers ---
   const handleInputChange = (field: string, value: string | boolean | number) => {
     dispatch(updateFormField({ field, value }));
-  };
-
-  const handleAddressChange = (field: string, value: string) => {
-    dispatch(updateAddressField({ field, value }));
   };
 
   const handleBankChange = (field: string, value: string) => {
     dispatch(updateBankField({ field, value }));
   };
 
-  const handleNewPractitionerChange = (field: string, value: string | boolean | number) => {
-    dispatch(updatePractitionerField({ field, value }));
-  };
-
-  const handleAddPractitioner = () => {
-    if (newPractitioner.full_name && newPractitioner.contact_email) {
-      dispatch(addPractitioner());
-    } else {
-      dispatch(setError('Practitioner name and email are required'));
-    }
-  };
-
-  const handleRemovePractitioner = (practitionerId: string) => {
-    dispatch(removePractitioner(practitionerId));
-  };
-
   const handleLoginChange = (field: string, value: string) => {
     dispatch(updateLoginField({ field, value }));
   };
 
-  // Enhanced Login Handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -170,7 +262,6 @@ export default function MedicalCenterPortal() {
 
       if (result.success) {
         dispatch(setSuccess('Login successful! Redirecting...'));
-        // Redirect to dashboard or set user session
         setTimeout(() => {
           window.location.href = '/mainPage';
         }, 2000);
@@ -182,7 +273,6 @@ export default function MedicalCenterPortal() {
     }
   };
 
-  // Enhanced Registration Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -191,9 +281,12 @@ export default function MedicalCenterPortal() {
       !formData.facility_name ||
       !formData.healthcare_reg_number ||
       !formData.official_domain_email ||
+      !formData.address.formatted_address ||
+      !formData.address.lat ||
+      !formData.address.lng ||
       !password
     ) {
-      dispatch(setError('Please fill in all required fields including password'));
+      dispatch(setError('Please fill in all required fields including a valid address and password'));
       return;
     }
 
@@ -207,12 +300,6 @@ export default function MedicalCenterPortal() {
       return;
     }
 
-    if (formData.practitioners.length === 0) {
-      dispatch(setError('Please add at least one practitioner'));
-      return;
-    }
-
-    // Bank details validation
     if (
       !formData.bankDetails.bank_name ||
       !formData.bankDetails.account_number ||
@@ -223,13 +310,12 @@ export default function MedicalCenterPortal() {
     }
 
     try {
-      // Prepare data with password and bank details
       const registrationData = {
         ...formData,
         password: password,
+        practitioners: formData.practitioners || [],
       };
 
-      // Submit registration data using Redux thunk
       const result = await dispatch(registerMedicalCenter(registrationData)).unwrap();
 
       if (result.success) {
@@ -275,7 +361,6 @@ export default function MedicalCenterPortal() {
     }
   }, [activeForm, dispatch]);
 
-  // Auto-clear success messages after 5 seconds
   useEffect(() => {
     if (success) {
       const timer = setTimeout(() => {
@@ -284,6 +369,15 @@ export default function MedicalCenterPortal() {
       return () => clearTimeout(timer);
     }
   }, [success, dispatch]);
+
+  // --- Map preview center ---
+  const mapCenter = {
+    lat: formData.address.lat ?? defaultCenter.lat,
+    lng: formData.address.lng ?? defaultCenter.lng,
+  };
+
+  // Determine if autocomplete is ready for user interaction
+  const isAutocompleteReady = isLoaded && ready;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">
@@ -314,7 +408,7 @@ export default function MedicalCenterPortal() {
                   />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold text-white">DMS</h1>
+              <h1 className="text-2xl font-bold text-white">MS</h1>
             </div>
             <div className="text-sm text-white/80 font-medium">For Medical Centers</div>
           </div>
@@ -426,7 +520,7 @@ export default function MedicalCenterPortal() {
 
         {!isRegistered && activeForm !== 'forgot' ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Side - Login */}
+            {/* Login Side */}
             <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-2xl p-8 hover:bg-white/15 transition-all duration-500">
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-white mb-2">Welcome Back</h2>
@@ -500,7 +594,7 @@ export default function MedicalCenterPortal() {
 
               <div className="mt-8 pt-8 border-t border-white/20">
                 <div className="text-center">
-                  <p className="text-white/70 mb-4">New to DMS?</p>
+                  <p className="text-white/70 mb-4">New to MS?</p>
                   <button
                     onClick={() => {
                       dispatch(setActiveForm('register'));
@@ -516,7 +610,7 @@ export default function MedicalCenterPortal() {
               </div>
             </div>
 
-            {/* Right Side - Registration */}
+            {/* Registration Side */}
             {activeForm === 'register' && (
               <div className="bg-gradient-to-br from-cyan-500/10 via-purple-500/10 to-blue-500/10 backdrop-blur-md border border-white/20 rounded-3xl shadow-2xl p-8 text-white hover:bg-white/5 transition-all duration-500">
                 <div className="text-center mb-8">
@@ -567,14 +661,15 @@ export default function MedicalCenterPortal() {
                       <select
                         value={formData.facility_type}
                         onChange={(e) => handleInputChange('facility_type', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white backdrop-blur-sm"
+                        className="w-full px-4 py-3 bg-purple-800/50 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white backdrop-blur-sm"
                         disabled={isLoading}
                       >
-                        {facilityTypes.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
+                        <option value="surgery" className="bg-purple-900 text-white">🏥 Surgery</option>
+                        <option value="clinic" className="bg-purple-900 text-white">🩺 Clinic</option>
+                        <option value="hospital" className="bg-purple-900 text-white">🏨 Hospital</option>
+                        <option value="community_health" className="bg-purple-900 text-white">🌍 Community Health</option>
+                        <option value="mobile_unit" className="bg-purple-900 text-white">🚐 Mobile Unit</option>
+                        <option value="other" className="bg-purple-900 text-white">⚕️ Other</option>
                       </select>
                     </div>
                   </div>
@@ -674,129 +769,116 @@ export default function MedicalCenterPortal() {
                     </div>
                   </div>
 
-                  {/* Address Information */}
+                  {/* Address Section - Single Google Places Input with Search Icon */}
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <label className="block text-sm font-medium text-white/90">
                         Facility Address *
                       </label>
-                      <button
-                        type="button"
-                        onClick={handleGetCurrentLocation}
-                        disabled={isGettingLocation || isLoading}
-                        className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-sm transition-all duration-300 disabled:opacity-50 backdrop-blur-sm"
-                      >
-                        {isGettingLocation ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <span>Getting Location...</span>
-                          </>
-                        ) : (
-                          <>
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                            </svg>
-                            <span>Use Current Location</span>
-                          </>
-                        )}
-                      </button>
+                     
                     </div>
 
-                    {locationError && (
-                      <div
-                        className={`p-3 rounded-lg text-sm backdrop-blur-sm ${
-                          locationError.includes('successfully')
-                            ? 'bg-green-500/20 text-green-300'
-                            : 'bg-red-500/20 text-red-300'
-                        }`}
-                      >
-                        {locationError}
+                    {loadError && (
+                      <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-300 text-sm">
+                        Google Maps failed to load. Check API key, billing, Places API, and domain restrictions.
                       </div>
                     )}
 
+                    {/* Address input with search button */}
                     <div>
                       <label className="block text-xs font-medium text-white/80 mb-1">
-                        Street Address
+                        Search Address *
                       </label>
-                      <input
-                        type="text"
-                        value={formData.address.line1}
-                        onChange={(e) => handleAddressChange('line1', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 backdrop-blur-sm"
-                        placeholder="Street address line 1"
-                        required
-                        disabled={isLoading}
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={autocompleteValue}
+                          onChange={(e) => setAutocompleteValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleManualAddressSearch();
+                            }
+                          }}
+                          disabled={isLoading || !isLoaded}
+                          placeholder="Type address e.g. 123 Mandela Street, Polokwane"
+                          className="w-full px-4 py-3 pr-14 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 backdrop-blur-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleManualAddressSearch}
+                          disabled={isLoading || !isLoaded || !autocompleteValue.trim()}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          title="Search address"
+                        >
+                          <svg
+                            className="w-5 h-5 text-white"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Autocomplete suggestions */}
+                      {status === 'OK' && data.length > 0 && (
+                        <ul className="mt-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 max-h-48 overflow-auto">
+                          {data.map((suggestion) => (
+                            <li
+                              key={suggestion.place_id}
+                              onClick={() => handlePlaceSelect(suggestion.place_id)}
+                              className="px-4 py-2 hover:bg-white/20 cursor-pointer text-white text-sm"
+                            >
+                              {suggestion.description}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {autocompleteValue && status !== 'OK' && isLoaded && (
+                        <p className="mt-2 text-xs text-white/60">
+                          No live suggestions yet. You can still click the search icon to verify the address.
+                        </p>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">
-                          City
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.address.city}
-                          onChange={(e) => handleAddressChange('city', e.target.value)}
-                          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 backdrop-blur-sm"
-                          placeholder="City"
-                          required
-                          disabled={isLoading}
-                        />
+                    {/* Display the selected address */}
+                    {formData.address.formatted_address && (
+                      <div className="bg-white/10 rounded-xl p-3 text-sm text-white/80 backdrop-blur-sm">
+                        <div className="text-cyan-300">Selected address:</div>
+                        <div className="mt-1">{formData.address.formatted_address}</div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">
-                          Province
-                        </label>
-                        <select
-                          value={formData.address.province}
-                          onChange={(e) => handleAddressChange('province', e.target.value)}
-                          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white backdrop-blur-sm"
-                          required
-                          disabled={isLoading}
+                    )}
+
+                    {/* Map Preview */}
+                    {isLoaded && (
+                      <div className="mt-4 rounded-xl overflow-hidden border border-white/20">
+                        <GoogleMap
+                          mapContainerStyle={mapContainerStyle}
+                          center={mapCenter}
+                          zoom={14}
+                          options={{
+                            zoomControl: true,
+                            streetViewControl: false,
+                            mapTypeControl: false,
+                          }}
                         >
-                          <option value="">Select Province</option>
-                          {provinces.map((province) => (
-                            <option key={province} value={province}>
-                              {province}
-                            </option>
-                          ))}
-                        </select>
+                          {formData.address.lat && formData.address.lng && (
+                            <Marker position={mapCenter} />
+                          )}
+                        </GoogleMap>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-white/80 mb-1">
-                          Postal Code
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.address.postal}
-                          onChange={(e) => handleAddressChange('postal', e.target.value)}
-                          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 backdrop-blur-sm"
-                          placeholder="Postal code"
-                          required
-                          disabled={isLoading}
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Bank Details Section */}
+                  {/* Bank Details */}
                   <div className="space-y-4">
                     <h4 className="text-sm font-medium text-white/90 mb-2">Bank Details</h4>
 
@@ -853,211 +935,20 @@ export default function MedicalCenterPortal() {
                         <select
                           value={formData.bankDetails.account_type}
                           onChange={(e) => handleBankChange('account_type', e.target.value)}
-                          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white backdrop-blur-sm"
+                          className="w-full px-4 py-3 bg-purple-800/50 border border-white/20 rounded-xl focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white backdrop-blur-sm"
                           required
                           disabled={isLoading}
                         >
-                          <option value="">Select Account Type</option>
-                          {accountTypes.map((type) => (
-                            <option key={type.value} value={type.value}>
-                              {type.label}
-                            </option>
-                          ))}
+                          <option value="current" className="bg-purple-900 text-white">Current Account</option>
+                          <option value="savings" className="bg-purple-900 text-white">Savings Account</option>
                         </select>
                       </div>
                     </div>
                   </div>
 
-                  {/* Practitioners Section */}
-                  <div>
-                    <label className="block text-sm font-medium text-white/90 mb-2">
-                      Responsible Practitioners *
-                    </label>
-
-                    {/* Add Practitioner Form */}
-                    <div className="bg-white/10 rounded-xl p-4 mb-4 space-y-4 backdrop-blur-sm">
-                      <h4 className="text-sm font-medium text-white/90">Add New Practitioner</h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">
-                            Full Name *
-                          </label>
-                          <input
-                            type="text"
-                            value={newPractitioner.full_name}
-                            onChange={(e) =>
-                              handleNewPractitionerChange('full_name', e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 text-sm backdrop-blur-sm"
-                            placeholder="Full name"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">
-                            Role *
-                          </label>
-                          <select
-                            value={newPractitioner.role}
-                            onChange={(e) =>
-                              handleNewPractitionerChange('role', e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white text-sm backdrop-blur-sm"
-                            disabled={isLoading}
-                          >
-                            {practitionerRoles.map((role) => (
-                              <option key={role.value} value={role.value}>
-                                {role.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">
-                            Professional License #
-                          </label>
-                          <input
-                            type="text"
-                            value={newPractitioner.professional_license_number}
-                            onChange={(e) =>
-                              handleNewPractitionerChange('professional_license_number', e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 text-sm backdrop-blur-sm"
-                            placeholder="License number"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">
-                            License Type
-                          </label>
-                          <select
-                            value={newPractitioner.license_type}
-                            onChange={(e) =>
-                              handleNewPractitionerChange('license_type', e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white text-sm backdrop-blur-sm"
-                            disabled={isLoading}
-                          >
-                            {licenseTypes.map((type) => (
-                              <option key={type.value} value={type.value}>
-                                {type.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">
-                            Contact Email *
-                          </label>
-                          <input
-                            type="email"
-                            value={newPractitioner.contact_email}
-                            onChange={(e) =>
-                              handleNewPractitionerChange('contact_email', e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 text-sm backdrop-blur-sm"
-                            placeholder="practitioner@email.com"
-                            disabled={isLoading}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-white/80 mb-1">
-                            Contact Phone
-                          </label>
-                          <input
-                            type="tel"
-                            value={newPractitioner.contact_phone}
-                            onChange={(e) =>
-                              handleNewPractitionerChange('contact_phone', e.target.value)
-                            }
-                            className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 transition-all duration-300 text-white placeholder-white/50 text-sm backdrop-blur-sm"
-                            placeholder="Phone number"
-                            disabled={isLoading}
-                          />
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handleAddPractitioner}
-                        disabled={isLoading}
-                        className="w-full bg-white/10 text-white py-2 rounded-lg font-medium hover:bg-white/20 transition-all duration-300 text-sm backdrop-blur-sm disabled:opacity-50"
-                      >
-                        Add Practitioner
-                      </button>
-                    </div>
-
-                    {/* Practitioners List */}
-                    {formData.practitioners.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-white/90">
-                          Added Practitioners ({formData.practitioners.length})
-                        </h4>
-                        {formData.practitioners.map((practitioner: Practitioner) => (
-                          <div
-                            key={practitioner.practitioner_id}
-                            className="bg-white/10 rounded-lg p-3 backdrop-blur-sm"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <span className="text-sm font-medium text-white/90">
-                                    {practitioner.full_name}
-                                  </span>
-                                  <span className="text-xs bg-white/20 px-2 py-1 rounded-full text-white/90">
-                                    {practitionerRoles.find((r) => r.value === practitioner.role)?.label}
-                                  </span>
-                                  <span
-                                    className={`text-xs px-2 py-1 rounded-full ${
-                                      practitioner.verification_status === 'verified'
-                                        ? 'bg-green-500/20 text-green-300'
-                                        : practitioner.verification_status === 'rejected'
-                                        ? 'bg-red-500/20 text-red-300'
-                                        : 'bg-yellow-500/20 text-yellow-300'
-                                    }`}
-                                  >
-                                    {practitioner.verification_status}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-white/70 space-y-1">
-                                  {practitioner.professional_license_number && (
-                                    <div>
-                                      License: {practitioner.professional_license_number} (
-                                      {practitioner.license_type})
-                                    </div>
-                                  )}
-                                  <div>Email: {practitioner.contact_email}</div>
-                                  {practitioner.contact_phone && (
-                                    <div>Phone: {practitioner.contact_phone}</div>
-                                  )}
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleRemovePractitioner(practitioner.practitioner_id)}
-                                disabled={isLoading}
-                                className="text-red-400 hover:text-red-300 text-sm ml-2 transition-colors disabled:opacity-50"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
                   <button
                     type="submit"
-                    disabled={isLoading || formData.practitioners.length === 0}
+                    disabled={isLoading}
                     className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 text-white py-3 rounded-xl font-semibold hover:from-cyan-500 hover:to-blue-600 transition-all duration-300 transform hover:-translate-y-0.5 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-sm flex items-center justify-center"
                   >
                     {isLoading ? (
@@ -1113,23 +1004,17 @@ export default function MedicalCenterPortal() {
                     <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
                       2
                     </div>
-                    <span>Practitioner license verification</span>
+                    <span>Bank details verification</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
                       3
                     </div>
-                    <span>Bank details verification</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
-                      4
-                    </div>
                     <span>Onboarding call with our team</span>
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="w-6 h-6 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs">
-                      5
+                      4
                     </div>
                     <span>Access to your professional dashboard</span>
                   </div>
