@@ -17,6 +17,7 @@ export const metadata: Metadata = {
     default: "Medical Syndicate | Book Doctor Appointments Online South Africa",
     template: "%s | Medical Syndicate",
   },
+
   description:
     "Medical Syndicate allows you to book doctor appointments online in South Africa. Find nearby medical centers, choose time slots, and get treated without waiting in queues.",
 
@@ -27,13 +28,20 @@ export const metadata: Metadata = {
     "clinic booking South Africa",
     "online doctor consultation",
     "hospital booking system",
-    "Surgery  near me",
-    "emergency ",
+    "surgery near me",
+    "emergency",
   ],
 
   authors: [{ name: "Medical Syndicate" }],
 
   metadataBase: new URL("https://medical-syndicate.com"),
+
+  // ✅ ADD THIS (VERY IMPORTANT)
+  icons: {
+    icon: "/icon.png",          // favicon (browser tab)
+    shortcut: "/icon.png",
+    apple: "/icon.png",
+  },
 
   openGraph: {
     title: "Medical Syndicate | Book Doctor Appointments Online",
@@ -43,6 +51,16 @@ export const metadata: Metadata = {
     siteName: "Medical Syndicate",
     locale: "en_ZA",
     type: "website",
+
+    // ✅ ADD THIS (YOUR LOGO PREVIEW IMAGE)
+    images: [
+      {
+        url: "/opengraph-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Medical Syndicate",
+      },
+    ],
   },
 
   twitter: {
@@ -50,6 +68,9 @@ export const metadata: Metadata = {
     title: "Medical Syndicate",
     description:
       "Book doctor appointments online in South Africa quickly and easily.",
+
+    // ✅ ADD THIS
+    images: ["/opengraph-image.png"],
   },
 
   robots: {
@@ -60,9 +81,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en-ZA">
       <body
