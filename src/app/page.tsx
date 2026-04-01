@@ -1,39 +1,6 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
-import PulseBackground from './(patient)/components/PulseBackground';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Book Doctor Appointments Online in South Africa | Medical Syndicate',
-  description:
-    'Medical Syndicate helps patients book doctor appointments online in South Africa, while medical centers manage appointments, branches, and healthcare operations more efficiently.',
-  keywords: [
-    'book doctor appointment online South Africa',
-    'medical centers South Africa',
-    'clinic booking system',
-    'hospital appointment booking',
-    'online healthcare booking South Africa',
-    'doctor consultation booking',
-    'medical center management system',
-  ],
-  openGraph: {
-    title: 'Medical Syndicate | Book Doctor Appointments Online in South Africa',
-    description:
-      'Book doctor appointments online and help medical centers manage appointments and branches more efficiently.',
-    url: 'https://medical-syndicate.com',
-    siteName: 'Medical Syndicate',
-    locale: 'en_ZA',
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Medical Syndicate | Book Doctor Appointments Online',
-    description:
-      'Book doctor appointments online in South Africa and help medical centers manage appointments smartly.',
-  },
-  alternates: {
-    canonical: 'https://medical-syndicate.com',
-  },
-};
+import { useRouter } from 'next/navigation';
 
 const features = [
   {
@@ -78,12 +45,22 @@ const features = [
 ];
 
 export default function MedicalLandingPage() {
+  const router = useRouter();
+
   return (
-    <>
-      <PulseBackground />
+    <div className="relative min-h-screen overflow-hidden bg-slate-950">
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(139,92,246,0.18),transparent_28%),radial-gradient(circle_at_80%_25%,rgba(59,130,246,0.14),transparent_24%),radial-gradient(circle_at_50%_75%,rgba(6,182,212,0.12),transparent_26%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(15,23,42,0.96),rgba(76,29,149,0.88),rgba(8,47,73,0.92))]" />
+
+        <div className="absolute left-1/2 top-[18%] h-72 w-72 -translate-x-1/2 rounded-full border border-cyan-300/10 bg-cyan-300/5 blur-2xl" />
+        <div className="absolute left-1/2 top-[18%] h-[22rem] w-[22rem] -translate-x-1/2 rounded-full border border-violet-300/10" />
+        <div className="absolute left-1/2 top-[18%] h-[30rem] w-[30rem] -translate-x-1/2 rounded-full border border-blue-300/10" />
+        <div className="absolute left-1/2 top-[18%] h-[38rem] w-[38rem] -translate-x-1/2 rounded-full border border-cyan-200/5" />
+      </div>
 
       <main className="relative z-10 min-h-screen px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
-        <section className="mx-auto flex w-full max-w-6xl flex-col items-center justify-center text-center min-h-screen">
+        <section className="mx-auto flex min-h-screen w-full max-w-6xl flex-col items-center justify-center text-center">
           <div className="w-full">
             <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200 sm:text-sm">
               Online Healthcare Booking Platform
@@ -102,17 +79,18 @@ export default function MedicalLandingPage() {
               connect branches under one network, and improve the healthcare booking experience.
             </p>
 
-            <div className="mx-2 mb-8 w-full max-w-2xl rounded-2xl border border-white/20 bg-white/10 p-5 shadow-xl backdrop-blur-lg sm:mx-auto sm:mb-12 sm:p-8 lg:p-10">
+            <div className="mx-2 mb-8 w-full max-w-2xl rounded-2xl border border-white/10 bg-white/10 p-5 shadow-lg backdrop-blur-sm sm:mx-auto sm:mb-12 sm:p-8 lg:p-10">
               <p className="mb-6 text-sm text-violet-200 sm:text-base">
                 Select your role to start using the platform
               </p>
 
               <div className="flex flex-col justify-center gap-4 sm:flex-row sm:flex-wrap sm:gap-6">
-                <Link
-                  href="/createprofile"
-                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-500 hover:-translate-y-1 hover:from-violet-700 hover:to-purple-700 hover:shadow-2xl sm:w-auto sm:px-10 sm:py-4 sm:text-base"
+                <button
+                  type="button"
+                  onClick={() => router.push('/createprofile')}
+                  className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-md transition-transform duration-200 active:scale-[0.98] sm:w-auto sm:px-10 sm:py-4 sm:text-base"
                 >
-                  <span className="relative z-10 flex items-center justify-center">
+                  <span className="flex items-center justify-center">
                     <svg className="mr-2 h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
@@ -123,14 +101,14 @@ export default function MedicalLandingPage() {
                     </svg>
                     Patient
                   </span>
-                  <div className="absolute inset-0 -translate-x-full -skew-x-12 transform bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
-                </Link>
+                </button>
 
-                <Link
-                  href="/medical"
-                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-500 hover:-translate-y-1 hover:from-blue-600 hover:to-cyan-600 hover:shadow-2xl sm:w-auto sm:px-10 sm:py-4 sm:text-base"
+                <button
+                  type="button"
+                  onClick={() => router.push('/medical')}
+                  className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-3 text-sm font-bold text-white shadow-md transition-transform duration-200 active:scale-[0.98] sm:w-auto sm:px-10 sm:py-4 sm:text-base"
                 >
-                  <span className="relative z-10 flex items-center justify-center">
+                  <span className="flex items-center justify-center">
                     <svg className="mr-2 h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
@@ -141,14 +119,14 @@ export default function MedicalLandingPage() {
                     </svg>
                     Medical Center
                   </span>
-                  <div className="absolute inset-0 -translate-x-full -skew-x-12 transform bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
-                </Link>
+                </button>
 
-                <Link
-                  href="/doctorLogin"
-                  className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-500 hover:-translate-y-1 hover:from-violet-700 hover:to-purple-700 hover:shadow-2xl sm:w-auto sm:px-10 sm:py-4 sm:text-base"
+                <button
+                  type="button"
+                  onClick={() => router.push('/doctorLogin')}
+                  className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-md transition-transform duration-200 active:scale-[0.98] sm:w-auto sm:px-10 sm:py-4 sm:text-base"
                 >
-                  <span className="relative z-10 flex items-center justify-center">
+                  <span className="flex items-center justify-center">
                     <svg className="mr-2 h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
                         strokeLinecap="round"
@@ -159,8 +137,7 @@ export default function MedicalLandingPage() {
                     </svg>
                     Doctor / Practitioner
                   </span>
-                  <div className="absolute inset-0 -translate-x-full -skew-x-12 transform bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
-                </Link>
+                </button>
               </div>
             </div>
 
@@ -171,7 +148,7 @@ export default function MedicalLandingPage() {
               {features.map((feature, i) => (
                 <article
                   key={i}
-                  className="rounded-xl border border-white/10 bg-white/5 p-4 text-center text-white backdrop-blur-lg sm:p-6 sm:text-left"
+                  className="rounded-xl border border-white/10 bg-white/8 p-4 text-center text-white backdrop-blur-sm sm:p-6 sm:text-left"
                 >
                   <div
                     className={`mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg sm:mx-0 sm:mb-4 sm:h-12 sm:w-12 ${feature.color}`}
@@ -186,7 +163,7 @@ export default function MedicalLandingPage() {
               ))}
             </section>
 
-            <section className="mx-auto mt-10 max-w-4xl rounded-2xl border border-white/10 bg-white/5 p-5 text-left text-violet-100 backdrop-blur-lg sm:p-8">
+            <section className="mx-auto mt-10 max-w-4xl rounded-2xl border border-white/10 bg-white/8 p-5 text-left text-violet-100 shadow-md backdrop-blur-sm sm:p-8">
               <h2 className="mb-3 text-xl font-bold text-white sm:text-2xl">
                 Healthcare booking made easier in South Africa
               </h2>
@@ -200,6 +177,6 @@ export default function MedicalLandingPage() {
           </div>
         </section>
       </main>
-    </>
+    </div>
   );
 }
